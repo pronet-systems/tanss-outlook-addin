@@ -60,6 +60,19 @@ export function onReady() {
   return readyPromise;
 }
 
+/**
+ * Ob die Office-Bibliothek ueberhaupt geladen ist.
+ *
+ * Der Unterschied zwischen "office.js fehlt" und "office.js ist da und meldet sich nicht"
+ * ist der Unterschied zwischen zwei voellig verschiedenen Suchen: das erste ist eine
+ * falsche Seitenadresse oder eine blockierte Quelle, das zweite ein Fehler der Einbettung.
+ * Wer beides in denselben Satz packt, schickt den Administrator in die falsche Richtung.
+ */
+export function hasOfficeApi() {
+  const office = globalThis.Office;
+  return Boolean(office && typeof office.onReady === "function");
+}
+
 /** Kurzform fuer `Office.context.mailbox`; `null`, solange oder falls es sie nicht gibt. */
 function mailbox() {
   const office = globalThis.Office;

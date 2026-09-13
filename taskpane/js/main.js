@@ -11,6 +11,12 @@
  * `index.html` trifft und der Reverse Proxy keinen SPA-Rueckfall braucht.
  */
 
+// ZUERST: Das Startprotokoll haengt seinen Zuhoerer fuer Verstoesse gegen die
+// Inhaltsrichtlinie an, und es zaehlt jede Millisekunde, die vorher vergeht. Module werden
+// in der Reihenfolge ihrer Import-Zeilen ausgewertet - diese Zeile gehoert deshalb nach
+// oben und nicht in die alphabetische Ordnung darunter.
+import * as boot from "./boot.js";
+
 import { T, t } from "../i18n/de.js";
 import * as api from "./api.js";
 import * as auth from "./auth.js";
@@ -105,6 +111,12 @@ function identitySubtitle() {
  * Handlung. Kein Ladekreis, kein leeres Pane.
  */
 function fatal(message, actionLabel = "", onAction = null) {
+  // Ein Endzustand darf keinen Fortschrittstext stehen lassen. Sonst steht ueber der
+  // Fehlermeldung weiter "Outlook wird abgewartet …" und behauptet, es laufe noch etwas -
+  // genau die Verwechslung, die den ersten Lauf in echtem Outlook unlesbar gemacht hat.
+  if (app.subtitleNode && Object.values(T.boot).includes(app.subtitleNode.textContent)) {
+    app.subtitleNode.textContent = "";
+  }
   if (!app.view) {
     // Selbst das Geruest fehlt. Dann wenigstens ein Absatz, damit die Seite nicht weiss bleibt.
     const container = document.getElementById("app") || document.body;
@@ -304,12 +316,43 @@ function checkCapabilities() {
 
 async function start() {
   buildShell();
+  // Der Router wird VOR dem Warten auf Outlook verdrahtet. Meldet sich der Host nicht,
+  // haengt der Start genau hier - und genau dann wird die Diagnoseseite gebraucht. Stuende
+  // die Verdrahtung wie frueher erst darunter, waere sie im Fehlerfall nicht erreichbar,
+  // und der Knopf im Kopf taete nichts.
+  window.addEventListener("hashchange", () => {
+    void renderRoute();
+  });
+
   setHeader(T.app.name, T.boot.officeWaiting);
 
+  // Die Zeile wird gesetzt, BEVOR gewartet wird. Wer die Diagnoseseite waehrend des
+  // Wartens oeffnet - der haeufigste Fall -, soll dort nicht eine fehlende Zeile
+  // vorfinden, sondern den Satz "es laeuft noch". Eine Luecke liest sich wie ein Versehen.
+  boot.mark(T.diagnose.bootReady, T.boot.officeWaiting);
+
   try {
-    await office.onReady();
-  } catch {
-    fatal(T.host.notOutlook);
+    const info = await office.onReady();
+    boot.mark(
+      T.diagnose.bootReady,
+      [T.app.yes, info.host || "?", info.platform || "?", `${boot.sinceStart()} ms`].join(" · "),
+    );
+  } catch (error) {
+    // Der Grund wird festgehalten, BEVOR die Meldung erscheint: `detail` unterscheidet
+    // "office.js fehlt" von "ohne Antwort", und genau diese Unterscheidung sucht hinterher
+    // derjenige, der das Bildschirmfoto der Diagnoseseite bekommt.
+    boot.mark(
+      T.diagnose.bootReady,
+      [T.app.no, (error && error.detail) || "?", `${boot.sinceStart()} ms`].join(" · "),
+    );
+    // Zwei Faelle, zwei Saetze. Fehlt office.js, laeuft die Seite ausserhalb von Outlook.
+    // Ist die Bibliothek da und antwortet trotzdem nicht, ist die Einbettung gestoert -
+    // eine ganz andere Suche, und die Diagnoseseite zeigt dafuer die Ausgangswerte.
+    fatal(
+      office.hasOfficeApi() ? T.host.officeSilent : T.host.notOutlook,
+      T.app.retry,
+      () => globalThis.location.reload(),
+    );
     return;
   }
 
@@ -326,9 +369,6 @@ async function start() {
   setHeader(T.app.name, T.boot.profileLoading);
   await loadMe();
 
-  window.addEventListener("hashchange", () => {
-    void renderRoute();
-  });
   await renderRoute();
 }
 

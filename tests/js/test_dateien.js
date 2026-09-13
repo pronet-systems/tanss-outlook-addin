@@ -437,3 +437,40 @@ test("die Beschriftungen im Menueband tragen echte Umlaute", () => {
     }
   }
 });
+
+test("das Startprotokoll wird vor allem anderen geladen", () => {
+  // Sein Zuhoerer meldet Verstoesse gegen die Inhaltsrichtlinie erst ab dem Augenblick, in
+  // dem er haengt. Rutschte diese Zeile in die alphabetische Ordnung darunter, fehlte auf
+  // der Diagnoseseite genau das, wofuer es sie gibt - und niemand saehe, dass etwas fehlt.
+  const quelle = lies(join(TASKPANE, "js", "main.js"));
+  const importe = [...quelle.matchAll(/^import .*? from "([^"]+)";$/gm)].map((t) => t[1]);
+  assert.equal(importe[0], "./boot.js", `erste Import-Zeile ist ${importe[0]}`);
+});
+
+test("keine Seite ruft eine Route auf, die der Verteiler nicht kennt", () => {
+  // Frueher lag hinter dem Verteiler ein eigener Dienst mit eigenen Routen. Der ist weg,
+  // seine Pfade sind es nicht ueberall gewesen: Die Diagnoseseite fragte weiter nach
+  // `healthz` und `readyz` und zeigte dafuer zwei erfundene Fehler an - ausgerechnet die
+  // Seite, die man oeffnet, WEIL etwas klemmt. Ein toter Pfad faellt sonst erst dem
+  // Benutzer auf, und ihm sagt er nichts.
+  const verteiler = lies(join(TASKPANE, "js", "api.js"));
+  const dateien = [join(TASKPANE, "js", "main.js")];
+  for (const name of readdirSync(join(TASKPANE, "js", "pages"))) {
+    if (name.endsWith(".js")) dateien.push(join(TASKPANE, "js", "pages", name));
+  }
+
+  let geprueft = 0;
+  for (const datei of dateien) {
+    const quelle = lies(datei);
+    for (const treffer of quelle.matchAll(/api\.(?:get|post|put)\(\s*"([^"]+)"/g)) {
+      const pfad = treffer[1];
+      geprueft += 1;
+      const alsMuster = `^${pfad.replace(/\//g, "\\/")}$`;
+      assert.ok(verteiler.includes(alsMuster) || verteiler.includes(pfad),
+        `${relative(WURZEL, datei)} ruft "${pfad}" auf, der Verteiler kennt den Pfad nicht.`);
+    }
+  }
+
+  // Ein Waechter ohne Gegenstand sieht auch dann nichts, wenn er kaputt ist.
+  assert.ok(geprueft > 0, "kein einziger Routenaufruf gefunden - der Fall prueft nichts");
+});

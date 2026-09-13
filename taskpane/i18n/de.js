@@ -92,6 +92,10 @@ export const T = deepFreeze({
   host: {
     notOutlook:
       "Dieses Add-in läuft nur in Outlook. Der aktuelle Host meldet keine Postfachschnittstelle.",
+    officeSilent:
+      "Outlook hat sich nicht gemeldet. Die Office-Bibliothek ist geladen, aber die Verbindung " +
+      "zum Host kam nicht zustande — ohne sie kann das Add-in weder die E-Mail noch den Termin " +
+      "lesen. Ein erneuter Versuch hilft oft; sonst zeigt die Diagnose, was der Host meldet.",
     setTooOld:
       "Dieser Outlook-Stand ist zu alt: er meldet das Anforderungspaket Mailbox {required} nicht. " +
       "Ohne dieses Paket kann das Add-in nicht erkennen, ob das Postfach in Exchange Online " +
@@ -255,6 +259,18 @@ export const T = deepFreeze({
     authResource: "Eigener Ressourcen-Bezeichner",
     authAccount: "Angemeldetes Konto",
     authLastError: "Letzter Anmeldefehler",
+    bootSection: "Start",
+    bootOffice: "Office-Bibliothek geladen",
+    bootReady: "Antwort von Outlook",
+    bootHostInfo: "Kennung des Hosts (_host_Info)",
+    bootHostInfoMissing: "nicht übergeben",
+    bootCsp: "Von der Inhaltsrichtlinie blockiert",
+    bootCspNone: "nichts",
+    configuration: "Konfiguration",
+    configApi: "TANSS-Adresse",
+    configInstance: "Kennzeichen der Installation",
+    configEntra: "Anwendungs-Id für Microsoft",
+    configSource: "Herkunft der Einstellungen",
     service: "Dienst",
     serviceVersion: "Dienstfassung",
     employee: "TANSS-Mitarbeiter",
