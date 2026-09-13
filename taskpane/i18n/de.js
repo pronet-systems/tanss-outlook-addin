@@ -185,6 +185,8 @@ export const T = deepFreeze({
     status: "Status",
     assignee: "Zuweisung",
     department: "Abteilung",
+    departmentNeedsAssignee: "— erst Zuweisung wählen —",
+    departmentNone: "— keine Abteilung hinterlegt —",
     internal: "Intern",
     attachMail: "E-Mail am Ticket ablegen",
     similarHeading: "Ähnliche Tickets",

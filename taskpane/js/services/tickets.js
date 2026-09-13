@@ -57,7 +57,10 @@ export async function mailContext(body, { signal } = {}) {
   const companyId = company ? company.id : null;
 
   const { remitter, remitterCandidates } = await resolveRemitter(address, companyId, signal);
-  const options = await repository().ticketOptions({ companyId, signal });
+  // Ueber denselben Weg wie jeder spaetere Abruf: Beim Oeffnen ist noch kein Techniker
+  // gewaehlt, also kommt die Abteilungsliste leer - und die Maske braucht nicht zwei
+  // Regeln fuer dasselbe Feld.
+  const options = await ticketOptions({ companyId }, { signal });
   const title = titleFromSubject(body.subject);
 
   let similarTickets = [];
@@ -177,13 +180,29 @@ async function quiet(work, fallback) {
  * stehen bleibt, bietet Werte an, die der Server anschliessend still verwirft.
  */
 export async function ticketOptions(query, { signal } = {}) {
-  return repository().ticketOptions({
+  const assigneeId = query.assigneeId || null;
+  const options = await repository().ticketOptions({
     companyId: query.companyId || null,
     typeId: query.typeId || null,
-    assigneeId: query.assigneeId || null,
+    assigneeId,
     departmentId: query.departmentId || null,
     signal,
   });
+
+  // Die Abteilungen haengen am gewaehlten Techniker, nicht an der Instanz. Ohne Techniker
+  // wird die Liste LEER gereicht - eine Auswahl ohne Bezug waere eine Falle: Sie liesse
+  // ein Ticket einer Abteilung zuordnen, der der Zugewiesene gar nicht angehoert.
+  if (!assigneeId) return { ...options, departments: [], departmentsFor: null };
+
+  const failures = [...(options.failures || [])];
+  const eigene = await repository().employeeDepartments(assigneeId, { signal, failures });
+  const erlaubt = new Set(eigene);
+  return {
+    ...options,
+    departments: options.departments.filter((eintrag) => erlaubt.has(eintrag.id)),
+    departmentsFor: assigneeId,
+    failures,
+  };
 }
 
 /* -------------------------------------------------------------- Ticketanlage */

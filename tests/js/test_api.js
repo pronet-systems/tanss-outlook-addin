@@ -343,3 +343,38 @@ test("ein unbekannter Zustand faellt weiterhin auf den Sammelfall", async () => 
   assert.equal(result.ok, false);
   assert.equal(result.error.code, "INTERNAL");
 });
+
+test("ohne Techniker bleibt die Abteilungsliste leer", async () => {
+  // Die Abteilung haengt am Zugewiesenen. Eine Auswahl ohne Bezug waere eine Falle: Sie
+  // liesse ein Ticket einer Abteilung zuordnen, der der Zugewiesene gar nicht angehoert -
+  // und in TANSS erreichte diese Zuweisung niemanden.
+  routes = {
+    "GET /api/v1/admin/ticketTypes": { content: [] },
+    "GET /api/v1/admin/ticketStates": { content: [] },
+    "GET /api/v1/employees/technicians": { content: [{ id: 5, name: "Anna" }] },
+    "GET /api/v1/employees/departments": { content: [{ id: 1, name: "Technik" }, { id: 2, name: "Vertrieb" }] },
+  };
+  calls.length = 0;
+
+  const result = await api.get("api/tickets/options", { query: {} });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data.departments, []);
+  assert.equal(result.data.departmentsFor, null);
+  assert.equal(calls.some((c) => c.path.startsWith("/api/v1/employees/5")), false,
+    "ohne Techniker wird seine Zugehoerigkeit gar nicht erst erfragt");
+});
+
+test("mit Techniker stehen nur SEINE Abteilungen zur Wahl", async () => {
+  routes = {
+    "GET /api/v1/admin/ticketTypes": { content: [] },
+    "GET /api/v1/admin/ticketStates": { content: [] },
+    "GET /api/v1/employees/technicians": { content: [{ id: 5, name: "Anna" }] },
+    "GET /api/v1/employees/departments": { content: [{ id: 1, name: "Technik" }, { id: 2, name: "Vertrieb" }] },
+    "GET /api/v1/employees/5": { content: { id: 5, departmentId: 2 } },
+  };
+
+  const result = await api.get("api/tickets/options", { query: { assigneeId: 5 } });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data.departments, [{ id: 2, name: "Vertrieb" }]);
+  assert.equal(result.data.departmentsFor, 5);
+});

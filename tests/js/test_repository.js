@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { TanssRepository, isFreshEmlDocument, shapeOf } from "../../taskpane/js/tanss/repository.js";
+import { TanssRepository, departmentIdsOf, isFreshEmlDocument, shapeOf } from "../../taskpane/js/tanss/repository.js";
 import { ApiError, reasonOf } from "../../taskpane/js/tanss/errors.js";
 
 /** Ein Client, der Aufrufe aufzeichnet und vorbereitete Antworten liefert. */
@@ -590,4 +590,48 @@ test("ohne Route und ohne Konfiguration bleibt die Typenliste leer", async () =>
   };
   const options = await new TanssRepository({ client, config: {} }).ticketOptions({});
   assert.deepEqual(options.types, []);
+});
+
+/* --------------------------------------------------- Abteilung am Techniker */
+
+test("die Abteilungen eines Technikers werden als Menge gelesen", async () => {
+  // In TANSS kann ein Mitarbeiter mehreren Abteilungen angehoeren: Neben dem Feld am
+  // Mitarbeiter gibt es eine eigene Zuordnung. Wer nur das eine Feld naehme, boete einem
+  // Techniker mit zwei Abteilungen nur eine an - und die zweite waere unerreichbar.
+  const client = fakeClient({
+    "GET /api/v1/employees/5": {
+      content: { id: 5, departmentId: 1, departmentAssignments: [{ departmentId: 2 }, { departmentId: 1 }] },
+    },
+  });
+  const ids = await new TanssRepository({ client, config: {} }).employeeDepartments(5);
+  assert.deepEqual(ids.sort(), [1, 2]);
+});
+
+test("faellt der Abruf aus, bleibt die Menge leer und der Grund steht da", async () => {
+  // Ausdruecklich KEIN Rueckfall auf die vollstaendige Liste: Das waere genau der
+  // Zustand, der abgestellt werden soll - ein Ticket bei einer Abteilung, der der
+  // Zugewiesene nicht angehoert -, nur ohne Hinweis darauf.
+  const client = {
+    calls: [],
+    get: async () => { throw new ApiError("FORBIDDEN", "nein", { status: 403 }); },
+    put: async () => ({}), post: async () => ({}), call: async () => [],
+  };
+  const failures = [];
+  const ids = await new TanssRepository({ client, config: {} })
+    .employeeDepartments(5, { failures });
+
+  assert.deepEqual(ids, []);
+  assert.ok(failures.some((f) => f.path === "/api/v1/employees/5" && /403/.test(f.reason)));
+});
+
+test("ohne Kennung wird gar nicht erst gefragt", async () => {
+  const client = { calls: [], get: async () => { throw new Error("darf nicht"); },
+    put: async () => ({}), post: async () => ({}), call: async () => [] };
+  assert.deepEqual(await new TanssRepository({ client, config: {} }).employeeDepartments(null), []);
+});
+
+test("nennt die Antwort keine Abteilung, ist das Ergebnis leer - nicht alles", () => {
+  assert.deepEqual(departmentIdsOf({ id: 5 }), []);
+  assert.deepEqual(departmentIdsOf({ id: 5, departmentId: 0 }), []);
+  assert.deepEqual(departmentIdsOf({ departments: [{ id: 7 }, 9] }).sort(), [7, 9]);
 });

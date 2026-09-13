@@ -757,6 +757,8 @@ export async function render(ctx) {
     if (!contains(options.types, state.typeId)) state.typeId = null;
     if (!contains(options.states, state.statusId)) state.statusId = null;
     if (!contains(options.technicians, state.assigneeId)) state.assigneeId = null;
+    // Ein gemerkter Wert, der nicht mehr zur Auswahl steht, wird gestrichen. Bei der
+    // Abteilung ist das der Regelfall: Sie haengt am Techniker, und mit ihm wechselt sie.
     if (!contains(options.departments, state.departmentId)) state.departmentId = null;
 
     const defaults = ctx.me && ctx.me.defaults ? ctx.me.defaults : {};
@@ -800,15 +802,24 @@ export async function render(ctx) {
         void loadOptions();
       },
     });
+    // Die Abteilung haengt am Techniker. Ohne ihn gibt es nichts zu waehlen - und eine
+    // Auswahl ohne Bezug waere eine Falle: Sie liesse ein Ticket einer Abteilung
+    // zuordnen, der der Zugewiesene gar nicht angehoert. Das Feld bleibt deshalb gesperrt
+    // und sagt, was fehlt.
+    const abteilungen = Array.isArray(options.departments) ? options.departments : [];
+    const ohneTechniker = state.assigneeId === null;
     const departmentSelect = ui.select({
-      options: toSelectOptions(options.departments),
+      options: toSelectOptions(abteilungen),
       value: state.departmentId,
-      placeholder: T.app.none,
+      placeholder: ohneTechniker
+        ? T.ticketNeu.departmentNeedsAssignee
+        : (abteilungen.length === 0 ? T.ticketNeu.departmentNone : T.app.none),
       onChange: () => {
         state.departmentId = numberOrNull(departmentSelect.value);
         markDirty();
       },
     });
+    departmentSelect.disabled = ohneTechniker || abteilungen.length === 0;
 
     ui.replace(
       optionsBox,
