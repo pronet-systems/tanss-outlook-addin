@@ -578,3 +578,33 @@ test("die Meldersuche prueft die Firma nach dem Warten erneut", () => {
   assert.ok(/state\.company\.id\s*!==/.test(nachDemWarten),
     "nach dem Warten wird die Firma nicht gegen die festgehaltene geprueft");
 });
+
+test("das Pane ruft nur Flaechen auf, die seine Tokenart erreicht", () => {
+  // TANSS bindet jede Schnittstellenflaeche an eine Rolle, und ein Anmeldetoken traegt
+  // genau eine. Eine gewoehnliche Anmeldung ergibt die Rolle des Fachzugriffs - damit
+  // sind /api/v1/** (einschliesslich /api/v1/admin/**, wo "admin" ein Namensteil ist und
+  // keine Rollenforderung) erreichbar, die Integrationsflaeche /api/tanss.x/v1/** und die
+  // ERP-Flaeche /api/erp/v1/** dagegen NICHT.
+  //
+  // Das ist kein gelegentlicher Ausfall, sondern eine Eigenschaft: Ein Aufruf dorthin
+  // wird mit dem Token eines Technikers IMMER abgewiesen. Genau daran hing die Meldung
+  // "Die Technikerliste war nicht abrufbar" - zweimal, ueber Tage.
+  //
+  // Der Waechter sieht nur die Aufrufstellen an. Dass client.js den Praefix als KONSTANTE
+  // kennt, ist richtig und bleibt: Die Regel, dort niemals loggedInUserId anzuhaengen,
+  // gilt weiter fuer den Fall, dass jemand die Flaeche einmal mit passendem Token nutzt.
+  const unerreichbar = ["/api/tanss.x/", "/api/erp/"];
+  const fundstellen = [];
+
+  for (const datei of ["repository.js", "session.js"]) {
+    const pfad = join(TASKPANE, "js", "tanss", datei);
+    ohneKommentare(pfad).split(/\r?\n/).forEach((zeile, i) => {
+      for (const flaeche of unerreichbar) {
+        if (zeile.includes(`"${flaeche}`)) fundstellen.push(`${datei}:${i + 1}: ${flaeche}`);
+      }
+    });
+  }
+
+  assert.deepEqual(fundstellen, [],
+    "Aufruf einer Flaeche, die eine andere Tokenart verlangt - er wird immer abgewiesen");
+});

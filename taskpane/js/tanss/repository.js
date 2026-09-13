@@ -120,16 +120,26 @@ export class TanssRepository {
   /* ---------------------------------------------------------------- Identitaet */
 
   /**
-   * Alle Techniker samt Adresse.
+   * Alle Techniker - Nummer und Name.
    *
-   * Bewusst ueber die Integrationsflaeche und damit ohne `loggedInUserId`: Die
-   * Entsprechung unter `/api/v1` liefert nur Nummer, Name und Listentyp - keine
-   * Adresse. Ohne Adresse gibt es keine Zuordnung.
+   * Frueher lief das ueber die Integrationsflaeche `/api/tanss.x/v1/technicians`, weil
+   * jene zusaetzlich die Adresse liefert. Diese Flaeche verlangt aber eine ANDERE
+   * Tokenart als eine gewoehnliche Anmeldung: Mit dem Token eines angemeldeten Technikers
+   * ist sie grundsaetzlich nicht erreichbar, nicht nur gelegentlich. Das Pane meldete
+   * deshalb zuverlaessig "Die Technikerliste war nicht abrufbar".
+   *
+   * Die Adresse, um derentwillen dieser Weg gewaehlt wurde, braucht niemand: Der einzige
+   * Aufrufer zeigt den eigenen Namen an und vergleicht dafuer Kennungen. Diese Route
+   * liegt unter derselben Rolle wie der uebrige Fachzugriff und liefert, was gebraucht
+   * wird.
+   *
+   * Sie setzt voraus, dass der Angemeldete in TANSS als Techniker oder Freiberufler
+   * gefuehrt wird. Ist er das nicht, faellt sie aus - und der Grund steht in der Meldung.
    */
   async listTechnicians() {
     const cached = this._technicians.get("all");
     if (cached) return cached;
-    const payload = (await this.client.get("/api/tanss.x/v1/technicians")) || [];
+    const payload = (await this.client.get("/api/v1/employees/technicians")) || [];
     const list = (Array.isArray(payload) ? payload : [])
       .filter((item) => item && item.id)
       .map((item) => ({
@@ -311,14 +321,19 @@ export class TanssRepository {
     const rules = await this._fieldRules(
       { companyId, typeId, assigneeId, departmentId, failures, signal });
     const [types, states, technicians, departments] = await Promise.all([
-      // Die Typenliste liegt auf der ERP-Flaeche, nicht neben den Ticketstatus - eine
-      // Unsymmetrie der Schnittstelle, kein Versehen hier. Ein `rank` fuehrt sie nicht;
-      // die Reihenfolge kommt deshalb vom Server und wird nicht umsortiert.
+      // Neben den Ticketstatus, und aus demselben Grund erreichbar: Das "admin" im Pfad
+      // ist ein Namensteil, keine Rollenforderung - diese Flaeche liegt unter derselben
+      // Rolle wie der uebrige Fachzugriff. Es gibt eine zweite, dokumentierte Typenliste
+      // auf der ERP-Flaeche; die verlangt eine Rolle, die ein Techniker nicht hat, und
+      // waere mit seinem Token immer abgewiesen worden.
+      //
+      // Ein `rank` fuehrt die Liste nicht; die Reihenfolge kommt vom Server und wird nicht
+      // umsortiert. Stillgelegte Typen werden nicht angeboten.
       //
       // Die Typen gehoeren NICHT in das Manifest: Ein dort eingetragener Typ altert - ein
       // in TANSS neu angelegter oder umbenannter kaeme nie an, ohne dass jemand ein
       // Manifest erzeugt, die Version erhoeht und neu ausrollt.
-      this._list("/api/erp/v1/tickets/types", signal, (raw) => raw
+      this._list("/api/v1/admin/ticketTypes", signal, (raw) => raw
         .filter((item) => item && item.id && item.active !== false)
         .map(namedId), failures),
       this._list("/api/v1/admin/ticketStates", signal, (raw) => raw

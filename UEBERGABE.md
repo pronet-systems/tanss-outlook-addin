@@ -121,6 +121,32 @@ Nichts davon ist Annahme.
 | Die Wächter über die Dateien | Schlagen nachweislich an: drei absichtlich eingebaute Verstöße, drei Fehlschläge |
 | `_host_Info` bei Adresse mit Parametern **und** Anker | Kommt im Abfrageteil an: `Outlook$Win32$16.02$de-DE$$$$0` — der Anker schadet nicht |
 | Skript-Ursprünge, die office.js wirklich braucht | Zwei: der eigene **und** `ajax.aspnetcdn.com` — siehe unten |
+| Welche TANSS-Flächen das Anmeldetoken eines Technikers erreicht | Nur `/api/v1/**`, einschließlich `/api/v1/admin/**`. **Nicht** `/api/tanss.x/v1/**` und **nicht** `/api/erp/v1/**` |
+
+### Die Rolle entscheidet, nicht nur die Route
+
+TANSS bindet jede Schnittstellenfläche an eine Rolle, und ein Anmeldetoken trägt **genau
+eine**. Eine gewöhnliche Anmeldung ergibt die Rolle des Fachzugriffs:
+
+| Fläche | Verlangte Rolle | Für uns erreichbar |
+|---|---|---|
+| `/api/v1/**` | Fachzugriff | ja |
+| `/api/v1/admin/**` | Fachzugriff — „admin" ist ein Namensteil, keine Rollenforderung | ja |
+| `/api/erp/v1/**` | ERP bzw. CENTRON | **nein** |
+| `/api/tanss.x/v1/**` | Integrationsrolle | **nein** |
+
+Daraus folgt eine Regel, die zweimal Tage gekostet hat: **Eine Route, die es gibt und die
+sogar dokumentiert ist, kann für diesen Client trotzdem unerreichbar sein.** Wer eine
+Route auswählt, prüft beides — ob es sie gibt *und* unter welcher Rolle sie liegt.
+
+Zwei Aufrufe hingen daran. Die Technikerliste lief über die Integrationsfläche, weil jene
+zusätzlich die Adresse liefert — die aber niemand braucht; sie läuft jetzt über
+`/api/v1/employees/technicians`. Und die Tickettypen wurden kurzzeitig auf die
+dokumentierte ERP-Route gelegt, die ein Techniker nie hätte aufrufen können; sie liegen
+auf `/api/v1/admin/ticketTypes`. Ein Wächter hält beide Flächen jetzt aus den
+Aufrufstellen heraus.
+
+---
 
 ### Der Stillstand beim ersten Lauf in echtem Outlook
 

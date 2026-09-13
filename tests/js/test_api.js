@@ -142,8 +142,8 @@ test("eine zu kurze Suche kostet keinen Aufruf", async () => {
 
 test("die Identitaet kommt aus der Anmeldung und nicht aus einer Zuordnung", async () => {
   routes = {
-    "GET /api/tanss.x/v1/technicians": [
-      { id: 42, name: "Anna Muster", emailAddress: "anna@example.de" },
+    "GET /api/v1/employees/technicians": [
+      { id: 42, name: "Anna Muster", listType: "TECHNICIAN" },
     ],
   };
   const result = await api.get("api/me");
@@ -164,7 +164,7 @@ test("die Technikerliste wird zwischengespeichert", async () => {
   const result = await api.get("api/me");
   assert.equal(result.ok, true);
   assert.equal(result.data.name, "Anna Muster", "aus dem Zwischenspeicher");
-  assert.equal(calls.some((c) => c.path === "/api/tanss.x/v1/technicians"), false,
+  assert.equal(calls.some((c) => c.path === "/api/v1/employees/technicians"), false,
     "es wurde gar nicht erst gefragt");
   assert.deepEqual(result.data.warnings, []);
 });

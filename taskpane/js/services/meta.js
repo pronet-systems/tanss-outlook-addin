@@ -76,7 +76,7 @@ async function displayName(current, warnings) {
     warnings.push(
       "Die Technikerliste war nicht abrufbar. Der Name wird deshalb nicht angezeigt; "
       + "auf die Ticketanlage hat das keinen Einfluss. "
-      + `Grund: /api/tanss.x/v1/technicians — ${reasonOf(error)}`,
+      + `Grund: /api/v1/employees/technicians — ${reasonOf(error)}`,
     );
   }
   return current.username();
