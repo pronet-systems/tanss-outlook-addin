@@ -114,7 +114,6 @@ export class TanssRepository {
     this.client = client;
     this.config = config;
     this._technicians = new Cache(TECHNICIAN_CACHE_MS);
-    this._departments = new Cache(TECHNICIAN_CACHE_MS);
     this._options = new Cache(OPTIONS_CACHE_MS);
   }
 
@@ -150,40 +149,6 @@ export class TanssRepository {
       }));
     this._technicians.put("all", list);
     return list;
-  }
-
-  /**
-   * Die Abteilungen, denen ein Techniker angehoert.
-   *
-   * In TANSS kann ein Mitarbeiter MEHREREN Abteilungen angehoeren: Neben dem Feld am
-   * Mitarbeiter selbst gibt es eine eigene Zuordnung. Gelesen werden deshalb beide
-   * Schreibweisen, und das Ergebnis ist eine Menge - wer nur das eine Feld naehme, boete
-   * einem Techniker mit zwei Abteilungen nur eine an.
-   *
-   * Geholt wird ueber die Einzelabfrage am Mitarbeiter. Die naheliegendere Route
-   * `employees/{id}/departments` liegt auf der ERP-Flaeche und verlangt eine Rolle, die
-   * ein Techniker nicht hat - sie schiede mit 403 aus.
-   *
-   * Faellt der Abruf aus, ist das Ergebnis LEER und nicht etwa die vollstaendige Liste.
-   * Ein Rueckfall auf alle Abteilungen waere genau der Zustand, der abgestellt werden
-   * soll, nur ohne Hinweis darauf.
-   */
-  async employeeDepartments(employeeId, { signal, failures = null } = {}) {
-    const id = num(employeeId);
-    if (!id) return [];
-    const cached = this._departments.get(String(id));
-    if (cached) return cached;
-
-    const pfad = `/api/v1/employees/${id}`;
-    try {
-      const payload = (await this.client.get(pfad, { signal })) || {};
-      const gefunden = departmentIdsOf(payload);
-      this._departments.put(String(id), gefunden);
-      return gefunden;
-    } catch (error) {
-      if (failures) failures.push({ path: pfad, reason: reasonOf(error) });
-      return [];
-    }
   }
 
   /**
@@ -376,8 +341,13 @@ export class TanssRepository {
         .map(namedId), failures),
       this._list("/api/v1/employees/technicians", signal,
         (raw) => raw.filter((item) => item && item.id).map(namedId), failures),
+      // Die Zuordnung wird BEHALTEN, nicht weggeworfen: Jede Abteilung nennt ihre
+      // Mitarbeiter. Das ist die einzige Stelle, an der die Mehrfachzugehoerigkeit eines
+      // Technikers vollstaendig steht - am Mitarbeiter selbst fuehrt TANSS nur seine
+      // primaere Abteilung, und wer dort liest, bietet einem Techniker mit drei
+      // Abteilungen genau eine an.
       this._list("/api/v1/employees/departments", signal,
-        (raw) => raw.filter((item) => item && item.id).map(namedId), failures),
+        (raw) => raw.filter((item) => item && item.id).map(departmentRow), failures),
     ]);
 
     const options = {
@@ -955,24 +925,23 @@ export class TanssRepository {
 }
 
 /**
- * Die Abteilungskennungen aus einer Mitarbeiterantwort - als Menge.
+ * Eine Abteilung samt der Kennungen ihrer Mitarbeiter.
  *
- * Drei Schreibweisen, weil TANSS die Zuordnung an zwei Orten fuehrt und die Antwort je
- * nach Route anders geformt ist: ein einzelnes Feld am Mitarbeiter, eine Liste von
- * Kennungen, oder eine Liste von Zuordnungen mit eigenem Feld. Alle drei werden gelesen;
- * eine LEERE Menge heisst "nicht feststellbar" und wird von der Maske auch so behandelt.
+ * `employeeIds` ist der Grund, warum diese Zeile nicht auf {id, name} verkuerzt wird: Es
+ * ist die einzige Stelle der Schnittstelle, an der die Mehrfachzugehoerigkeit vollstaendig
+ * steht. Am Mitarbeiter selbst fuehrt TANSS nur seine primaere Abteilung.
+ *
+ * Eine LEERE Liste heisst "nicht feststellbar" und fuehrt dazu, dass die Abteilung
+ * niemandem angeboten wird - nicht dazu, dass sie allen angeboten wird.
  */
-export function departmentIdsOf(payload) {
-  const gefunden = new Set();
-  const merken = (wert) => {
-    const id = num(wert && typeof wert === "object" ? (wert.departmentId ?? wert.id) : wert);
-    if (id) gefunden.add(id);
+export function departmentRow(item) {
+  return {
+    id: num(item.id),
+    name: str(item.name),
+    employeeIds: (Array.isArray(item.employeeIds) ? item.employeeIds : [])
+      .map(num)
+      .filter(Boolean),
   };
-  if (Array.isArray(payload.departmentAssignments)) payload.departmentAssignments.forEach(merken);
-  if (Array.isArray(payload.departments)) payload.departments.forEach(merken);
-  if (Array.isArray(payload.departmentIds)) payload.departmentIds.forEach(merken);
-  merken(payload.departmentId);
-  return [...gefunden];
 }
 
 /**

@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { TanssRepository, departmentIdsOf, isFreshEmlDocument, shapeOf } from "../../taskpane/js/tanss/repository.js";
+import { TanssRepository, departmentRow, isFreshEmlDocument, shapeOf } from "../../taskpane/js/tanss/repository.js";
 import { ApiError, reasonOf } from "../../taskpane/js/tanss/errors.js";
 
 /** Ein Client, der Aufrufe aufzeichnet und vorbereitete Antworten liefert. */
@@ -594,44 +594,35 @@ test("ohne Route und ohne Konfiguration bleibt die Typenliste leer", async () =>
 
 /* --------------------------------------------------- Abteilung am Techniker */
 
-test("die Abteilungen eines Technikers werden als Menge gelesen", async () => {
-  // In TANSS kann ein Mitarbeiter mehreren Abteilungen angehoeren: Neben dem Feld am
-  // Mitarbeiter gibt es eine eigene Zuordnung. Wer nur das eine Feld naehme, boete einem
-  // Techniker mit zwei Abteilungen nur eine an - und die zweite waere unerreichbar.
+test("eine Abteilungszeile behaelt ihre Belegschaft", () => {
+  // Sie ist die einzige Stelle der Schnittstelle, an der die Mehrfachzugehoerigkeit
+  // vollstaendig steht. Am Mitarbeiter selbst fuehrt TANSS nur seine PRIMAERE Abteilung -
+  // wer dort liest, bietet einem Techniker mit drei Abteilungen genau eine an. Genau so
+  // ist es im Betrieb aufgefallen.
+  assert.deepEqual(departmentRow({ id: 3, name: "Technik", employeeIds: [5, 9] }),
+    { id: 3, name: "Technik", employeeIds: [5, 9] });
+});
+
+test("fehlt die Belegschaft, ist sie leer - und die Abteilung wird niemandem angeboten", () => {
+  // Kein Rueckfall auf "alle": Das waere genau der Zustand, der abgestellt werden soll.
+  assert.deepEqual(departmentRow({ id: 3, name: "Technik" }).employeeIds, []);
+  assert.deepEqual(departmentRow({ id: 3, name: "Technik", employeeIds: "unsinn" }).employeeIds, []);
+});
+
+test("die Abteilungsliste kommt mit Belegschaft aus der Sammelabfrage", async () => {
+  // Ohne Zusatzaufruf: Die Liste wird beim Oeffnen ohnehin geholt.
   const client = fakeClient({
-    "GET /api/v1/employees/5": {
-      content: { id: 5, departmentId: 1, departmentAssignments: [{ departmentId: 2 }, { departmentId: 1 }] },
+    "GET /api/v1/admin/ticketTypes": { content: [] },
+    "GET /api/v1/admin/ticketStates": { content: [] },
+    "GET /api/v1/employees/technicians": { content: [] },
+    "GET /api/v1/employees/departments": {
+      content: [
+        { id: 1, name: "Geschäftsleitung", employeeIds: [5] },
+        { id: 2, name: "Technik", employeeIds: [5, 9] },
+        { id: 3, name: "Vertrieb", employeeIds: [9] },
+      ],
     },
   });
-  const ids = await new TanssRepository({ client, config: {} }).employeeDepartments(5);
-  assert.deepEqual(ids.sort(), [1, 2]);
-});
-
-test("faellt der Abruf aus, bleibt die Menge leer und der Grund steht da", async () => {
-  // Ausdruecklich KEIN Rueckfall auf die vollstaendige Liste: Das waere genau der
-  // Zustand, der abgestellt werden soll - ein Ticket bei einer Abteilung, der der
-  // Zugewiesene nicht angehoert -, nur ohne Hinweis darauf.
-  const client = {
-    calls: [],
-    get: async () => { throw new ApiError("FORBIDDEN", "nein", { status: 403 }); },
-    put: async () => ({}), post: async () => ({}), call: async () => [],
-  };
-  const failures = [];
-  const ids = await new TanssRepository({ client, config: {} })
-    .employeeDepartments(5, { failures });
-
-  assert.deepEqual(ids, []);
-  assert.ok(failures.some((f) => f.path === "/api/v1/employees/5" && /403/.test(f.reason)));
-});
-
-test("ohne Kennung wird gar nicht erst gefragt", async () => {
-  const client = { calls: [], get: async () => { throw new Error("darf nicht"); },
-    put: async () => ({}), post: async () => ({}), call: async () => [] };
-  assert.deepEqual(await new TanssRepository({ client, config: {} }).employeeDepartments(null), []);
-});
-
-test("nennt die Antwort keine Abteilung, ist das Ergebnis leer - nicht alles", () => {
-  assert.deepEqual(departmentIdsOf({ id: 5 }), []);
-  assert.deepEqual(departmentIdsOf({ id: 5, departmentId: 0 }), []);
-  assert.deepEqual(departmentIdsOf({ departments: [{ id: 7 }, 9] }).sort(), [7, 9]);
+  const options = await new TanssRepository({ client, config: {} }).ticketOptions();
+  assert.deepEqual(options.departments.map((d) => d.employeeIds), [[5], [5, 9], [9]]);
 });

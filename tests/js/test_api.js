@@ -352,7 +352,7 @@ test("ohne Techniker bleibt die Abteilungsliste leer", async () => {
     "GET /api/v1/admin/ticketTypes": { content: [] },
     "GET /api/v1/admin/ticketStates": { content: [] },
     "GET /api/v1/employees/technicians": { content: [{ id: 5, name: "Anna" }] },
-    "GET /api/v1/employees/departments": { content: [{ id: 1, name: "Technik" }, { id: 2, name: "Vertrieb" }] },
+    "GET /api/v1/employees/departments": { content: [{ id: 1, name: "Technik", employeeIds: [5] }] },
   };
   calls.length = 0;
 
@@ -369,12 +369,22 @@ test("mit Techniker stehen nur SEINE Abteilungen zur Wahl", async () => {
     "GET /api/v1/admin/ticketTypes": { content: [] },
     "GET /api/v1/admin/ticketStates": { content: [] },
     "GET /api/v1/employees/technicians": { content: [{ id: 5, name: "Anna" }] },
-    "GET /api/v1/employees/departments": { content: [{ id: 1, name: "Technik" }, { id: 2, name: "Vertrieb" }] },
-    "GET /api/v1/employees/5": { content: { id: 5, departmentId: 2 } },
+    "GET /api/v1/employees/departments": {
+      content: [
+        { id: 1, name: "Geschäftsleitung", employeeIds: [5] },
+        { id: 2, name: "Technik", employeeIds: [5, 9] },
+        { id: 3, name: "Vertrieb", employeeIds: [9] },
+      ],
+    },
   };
+  calls.length = 0;
 
   const result = await api.get("api/tickets/options", { query: { assigneeId: 5 } });
   assert.equal(result.ok, true);
-  assert.deepEqual(result.data.departments, [{ id: 2, name: "Vertrieb" }]);
+  assert.deepEqual(result.data.departments,
+    [{ id: 1, name: "Geschäftsleitung" }, { id: 2, name: "Technik" }],
+    "ALLE Abteilungen des Technikers, nicht nur die erste");
   assert.equal(result.data.departmentsFor, 5);
+  assert.equal(calls.some((c) => c.path === "/api/v1/employees/5"), false,
+    "es braucht keinen Zusatzaufruf - die Liste traegt die Zuordnung mit sich");
 });

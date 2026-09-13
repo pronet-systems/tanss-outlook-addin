@@ -194,14 +194,17 @@ export async function ticketOptions(query, { signal } = {}) {
   // ein Ticket einer Abteilung zuordnen, der der Zugewiesene gar nicht angehoert.
   if (!assigneeId) return { ...options, departments: [], departmentsFor: null };
 
-  const failures = [...(options.failures || [])];
-  const eigene = await repository().employeeDepartments(assigneeId, { signal, failures });
-  const erlaubt = new Set(eigene);
+  // Gefiltert wird ohne einen einzigen Zusatzaufruf: Jede Abteilung nennt ihre
+  // Mitarbeiter. Der umgekehrte Weg - die Zuordnung am Mitarbeiter nachschlagen - fuehrt
+  // in die Irre, weil dort nur die PRIMAERE Abteilung steht; ein Techniker, der drei
+  // angehoert, bekaeme genau eine angeboten.
+  const id = Number(assigneeId);
   return {
     ...options,
-    departments: options.departments.filter((eintrag) => erlaubt.has(eintrag.id)),
-    departmentsFor: assigneeId,
-    failures,
+    departments: options.departments
+      .filter((eintrag) => eintrag.employeeIds.includes(id))
+      .map(({ id: departmentId, name }) => ({ id: departmentId, name })),
+    departmentsFor: id,
   };
 }
 
