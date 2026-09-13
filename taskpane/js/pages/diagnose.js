@@ -23,6 +23,7 @@ import { T, errorText, formatBytes } from "../../i18n/de.js";
 import * as auth from "../auth.js";
 import * as boot from "../boot.js";
 import { apiHost, config, note as configNote } from "../config.js";
+import { session } from "../runtime.js";
 import * as mime from "../mime.js";
 import * as office from "../office.js";
 import * as ui from "../ui.js";
@@ -47,6 +48,30 @@ function show(value) {
 function cspZeile(liste) {
   if (liste.length > 0) return liste.join(" \u00b7 ");
   return boot.hadEarlyListener() ? T.diagnose.bootCspNone : T.diagnose.bootCspLate;
+}
+
+/**
+ * Die Sitzungsangaben - und ein Fang darum.
+ *
+ * Diese Seite wird geoeffnet, WEIL etwas klemmt. Klemmt ausgerechnet der oertliche
+ * Speicher - in einem abgeschotteten Browser kann der Zugriff werfen -, darf nicht auch
+ * noch die Diagnose ausfallen.
+ */
+function safeDescribe() {
+  try {
+    return session().describe();
+  } catch {
+    return { stored: false, hasToken: false, hasRefresh: false, expiresAt: 0 };
+  }
+}
+
+/** Wie lange noch, in Worten. Eine Zahl allein liest sich niemand zusammen. */
+function remaining(expiresAt) {
+  const ms = expiresAt - Date.now();
+  if (ms <= 0) return T.diagnose.sessionExpired;
+  const minuten = Math.round(ms / 60_000);
+  if (minuten < 60) return `noch ${minuten} min`;
+  return `noch ${Math.round(minuten / 60)} h`;
 }
 
 /* ------------------------------------------------------------------------ Seite */
@@ -110,7 +135,21 @@ export async function render(ctx) {
     [T.diagnose.featureGraphMail, show(mime.currentSource() === "graph")],
   ];
 
+  /**
+   * Die TANSS-Sitzung - warum steht nach einem Neustart die Anmeldemaske da?
+   *
+   * Zwei Ursachen sehen von aussen gleich aus: Der Speicher war leer, oder das
+   * Erneuerungstoken wurde abgewiesen. Die erste ist eine Frage des Aufbewahrungsorts,
+   * die zweite eine der Laufzeit auf der TANSS-Seite - zwei voellig verschiedene
+   * Reparaturen. Diese drei Zeilen trennen sie.
+   */
+  const sitzung = safeDescribe();
   const authPairs = [
+    [T.diagnose.sessionStored, show(sitzung.stored)],
+    [T.diagnose.sessionRefresh, show(sitzung.hasRefresh)],
+    [T.diagnose.sessionExpires, sitzung.expiresAt > 0
+      ? `${new Date(sitzung.expiresAt).toLocaleString("de-DE")} (${remaining(sitzung.expiresAt)})`
+      : T.diagnose.notAvailable],
     [T.diagnose.authMethod, show(diagnostics.methodLabel)],
     [T.diagnose.authClientId, show(diagnostics.clientId)],
     [T.diagnose.authResource, show(diagnostics.resource)],

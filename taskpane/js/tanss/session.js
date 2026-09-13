@@ -223,6 +223,31 @@ export class Session {
     this._store(content, this.username());
   }
 
+  /**
+   * Was ueber die Sitzung gesagt werden darf - fuer die Diagnoseseite.
+   *
+   * Ausdruecklich OHNE Token und ohne Auszug davon. Ein Tokenanfang in einer Meldung, die
+   * weitergereicht wird, ist ein Token in fremder Hand; und fuer die Frage, die hier zu
+   * beantworten ist, braucht es ihn nicht.
+   *
+   * Diese Frage lautet: Warum steht nach einem Neustart die Anmeldemaske da? Zwei
+   * Ursachen sehen von aussen gleich aus - der Speicher war leer, oder das
+   * Erneuerungstoken wurde abgewiesen -, verlangen aber voellig verschiedene
+   * Reparaturen. `hasRefresh` und `expiresAt` trennen sie.
+   */
+  describe() {
+    const record = read();
+    if (!record) return { stored: false, hasToken: false, hasRefresh: false, expiresAt: 0 };
+    return {
+      stored: true,
+      hasToken: Boolean(record.apiToken),
+      hasRefresh: Boolean(record.refreshToken),
+      expiresAt: Number(record.expiresAt || 0),
+      employeeId: Number(record.employeeId || 0),
+      username: String(record.username || ""),
+    };
+  }
+
   /** Verwirft die Sitzung vollstaendig. */
   clear() {
     write(null);

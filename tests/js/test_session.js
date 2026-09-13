@@ -185,3 +185,45 @@ test("ein gesperrter Speicher nimmt der Sitzung nicht die Funktion", async () =>
   await session.login({ username: "a", password: "b" });
   assert.equal(session.employeeId(), 42, "der Arbeitsspeicher traegt die Sitzung");
 });
+
+test("die Sitzungsauskunft nennt nie das Token selbst", () => {
+  // Sie steht auf der Diagnoseseite, und die wird weitergereicht. Ein Tokenanfang in
+  // einer weitergereichten Meldung ist ein Token in fremder Hand - und fuer die Frage,
+  // die diese Auskunft beantworten soll, braucht es ihn nicht.
+  const { session: s } = sessionWith([{ body: "{}" }]);
+  s._store({ employeeId: 7, apiKey: "Bearer geheim.geheim.geheim", refresh: "auch-geheim",
+    expire: Math.floor(Date.now() / 1000) + 3600 }, "anna");
+
+  const auskunft = s.describe();
+  const alsText = JSON.stringify(auskunft);
+  assert.ok(!alsText.includes("geheim"), `Token in der Auskunft: ${alsText}`);
+  assert.equal(auskunft.stored, true);
+  assert.equal(auskunft.hasToken, true);
+  assert.equal(auskunft.hasRefresh, true);
+  assert.ok(auskunft.expiresAt > Date.now());
+});
+
+test("ohne Sitzung sagt die Auskunft das, statt zu werfen", () => {
+  // Sie wird gerade dann gelesen, wenn keine Anmeldung vorliegt - das ist der haeufigste
+  // Grund, die Diagnoseseite zu oeffnen.
+  const { session: s } = sessionWith([{ body: "{}" }]);
+  s.clear();
+  assert.deepEqual(s.describe(),
+    { stored: false, hasToken: false, hasRefresh: false, expiresAt: 0 });
+});
+
+test("ein abgelaufenes Zugriffstoken mit Erneuerungstoken bleibt unterscheidbar", () => {
+  // Genau diese Unterscheidung fehlte: "Speicher war leer" und "Erneuerungstoken
+  // abgewiesen" sehen von aussen gleich aus - Anmeldemaske -, verlangen aber voellig
+  // verschiedene Reparaturen.
+  const { session: s } = sessionWith([{ body: "{}" }]);
+  s._store({ employeeId: 7, apiKey: "Bearer x", refresh: "y",
+    expire: Math.floor(Date.now() / 1000) - 60 }, "anna");
+
+  const auskunft = s.describe();
+  assert.equal(auskunft.stored, true, "der Speicher war gefuellt");
+  assert.equal(auskunft.hasRefresh, true, "ein Erneuerungstoken lag vor");
+  assert.ok(auskunft.expiresAt < Date.now(), "das Zugriffstoken war abgelaufen");
+  assert.equal(s.isFresh(), false);
+  assert.equal(s.exists(), true, "eine Sitzung, die erneuert werden kann, existiert");
+});
