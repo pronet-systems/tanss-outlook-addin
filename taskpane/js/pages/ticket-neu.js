@@ -471,7 +471,12 @@ export async function render(ctx) {
             // fuehrt je Standort eine eigene, unter demselben Namen; ohne sie waehlt man
             // aus gleich aussehenden Eintraegen.
             badgeLabel: company.displayId || "",
-            subtitle: [company.postCode, company.city].filter(Boolean).join(" "),
+            // Zentrale oder Filiale steht in der Unterzeile, nicht als zweites Abzeichen:
+            // Die Nummer UNTERSCHEIDET die Standorte, diese Angabe BENENNT sie. Zwei
+            // Abzeichen nebeneinander waeren zwei Dinge von gleichem Gewicht - sie sind
+            // es nicht.
+            subtitle: [companyKind(company), company.postCode, company.city]
+              .filter(Boolean).join(" · "),
             onClick: () => pickCompany(company),
           }),
       }),
@@ -519,6 +524,20 @@ export async function render(ctx) {
     remitterExtraBox.dataset.mode = "";
     remitterSearch.input.value = "";
     ui.clear(remitterResults);
+  }
+
+  /**
+   * Zentrale oder Filiale - oder nichts.
+   *
+   * TANSS kennt drei Zustaende, und der dritte ist der haeufigste: Die meisten Firmen sind
+   * weder das eine noch das andere. Fuer sie steht hier nichts, statt sie mit "keine
+   * Angabe" zu beschriften - eine Zeile, die bei fast allen Treffern dasselbe sagt, macht
+   * die wenigen unkenntlich, bei denen es darauf ankommt.
+   */
+  function companyKind(company) {
+    if (company.centralType === "CENTRAL") return T.ticketNeu.companyCentral;
+    if (company.centralType === "BRANCH") return T.ticketNeu.companyBranch;
+    return "";
   }
 
   /** Firma mit Kundennummer, sofern eine mitkam. */

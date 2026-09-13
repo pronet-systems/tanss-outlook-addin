@@ -162,6 +162,8 @@ export const T = deepFreeze({
     company: "Firma",
     companyFromAddress: "aus der Absenderadresse erkannt",
     companyFromDomain: "aus der Absenderdomäne erkannt",
+    companyCentral: "Zentrale",
+    companyBranch: "Filiale",
     companyUnknown: "nicht erkannt — bitte auswählen",
     companyChange: "Andere Firma wählen",
     remitter: "Melder",

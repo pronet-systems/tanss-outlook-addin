@@ -234,6 +234,7 @@ export function companyRow(item) {
     displayId: str(item.displayId),
     inactive: Boolean(item.inactive),
     lockout: Boolean(item.lockout),
+    centralType: str(item.centralType).toUpperCase(),
   };
 }
 

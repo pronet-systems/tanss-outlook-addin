@@ -672,3 +672,30 @@ test("jede Firmenliste zeigt die Kundennummer", () => {
       `${datei}: die Firmenliste zeigt die Kundennummer nicht`);
   }
 });
+
+test("kein Objektliteral setzt denselben Schluessel zweimal", () => {
+  // Der zweite gewinnt, still. Genau so ist eine frisch gebaute Unterzeile in der
+  // Terminmaske sofort wieder ueberschrieben worden - node --check sagt dazu nichts, und
+  // im Pane sieht es aus, als waere die Aenderung nie angekommen.
+  const fundstellen = [];
+  for (const datei of dateienUnter(join(TASKPANE, "js"), [".js"])) {
+    if (relative(TASKPANE, datei).split(/[\/]/).includes("vendor")) continue;
+    const zeilen = ohneKommentare(datei).split(/\r?\n/);
+    const offen = [];
+    zeilen.forEach((zeile, i) => {
+      const tiefe = (zeile.match(/\{/g) || []).length - (zeile.match(/\}/g) || []).length;
+      const schluessel = zeile.match(/^\s*([a-zA-Z_$][\w$]*)\s*:/);
+      if (schluessel) {
+        const ebene = offen.length;
+        offen[ebene] = offen[ebene] || new Set();
+        if (offen[ebene].has(schluessel[1])) {
+          fundstellen.push(`${kurz(datei)}:${i + 1}: ${schluessel[1]}`);
+        }
+        offen[ebene].add(schluessel[1]);
+      }
+      if (tiefe > 0) offen.push(new Set());
+      if (tiefe < 0) offen.pop();
+    });
+  }
+  assert.deepEqual(fundstellen, []);
+});
