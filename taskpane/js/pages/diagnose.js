@@ -241,6 +241,10 @@ export async function render(ctx) {
       ui.section({ heading: T.diagnose.service, children: [ui.kv(servicePairs)] }),
 
       ui.row([
+        // Diese Seite ist ein Nebenweg, und ein Nebenweg braucht einen Ausgang. Er fehlte:
+        // Wer hierher kam, konnte nur ueber das Menueband zurueck - also das Pane schliessen
+        // und neu oeffnen.
+        ui.button({ label: T.app.back, variant: "primary", onClick: () => ctx.navigate("#/") }),
         ui.button({ label: T.diagnose.copy, variant: "ghost", onClick: () => void copyAll() }),
         ui.button({ label: T.app.retry, variant: "ghost", onClick: () => void ctx.reload() }),
       ]),

@@ -77,7 +77,11 @@ function signedIn(ctx, diagnostics) {
           },
         })
       : null,
-    ui.button({ label: T.app.back, variant: "ghost", onClick: () => void ctx.reload() }),
+    // Zurueck heisst: weg von dieser Seite. Frueher stand hier `reload`, und das zeichnete
+    // dieselbe Seite noch einmal - der Knopf tat sichtbar nichts. `#/` ist die
+    // Standardroute nach Art des geoeffneten Elements; welche das ist, entscheidet der
+    // Router und nicht diese Seite.
+    ui.button({ label: T.app.back, variant: "ghost", onClick: () => ctx.navigate("#/") }),
   ];
 }
 

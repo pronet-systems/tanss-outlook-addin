@@ -181,32 +181,26 @@ async function quiet(work, fallback) {
  * stehen bleibt, bietet Werte an, die der Server anschliessend still verwirft.
  */
 export async function ticketOptions(query, { signal } = {}) {
-  const assigneeId = query.assigneeId || null;
-  const options = await repository().ticketOptions({
+  // Die Abteilungsliste wird NICHT nach dem gewaehlten Techniker gefiltert, und das ist
+  // keine Nachlaessigkeit, sondern die Grenze der Schnittstelle: TANSS gibt einem
+  // Technikertoken die Mehrfachzugehoerigkeit nirgends heraus.
+  //
+  // Am Mitarbeiter steht nur seine PRIMAERE Abteilung - wer dort liest, bietet einem
+  // Techniker mit drei Abteilungen genau eine an. An der Abteilung gibt es zwar ein Feld
+  // mit ihren Mitarbeitern, aber es wird in keiner Ausfuehrlichkeitsstufe ausgeliefert.
+  // Die vollstaendige Zuordnung fuehrt eine eigene Tabelle, die nur eine Flaeche
+  // ausliefert, die eine andere Tokenart verlangt.
+  //
+  // Beide Wege sind gebaut und gemessen worden; beide sind gescheitert. Eine Filterung
+  // auf halber Strecke waere schlechter als keine: Sie saehe richtig aus und liesse
+  // Abteilungen verschwinden, denen der Techniker sehr wohl angehoert.
+  return repository().ticketOptions({
     companyId: query.companyId || null,
     typeId: query.typeId || null,
-    assigneeId,
+    assigneeId: query.assigneeId || null,
     departmentId: query.departmentId || null,
     signal,
   });
-
-  // Die Abteilungen haengen am gewaehlten Techniker, nicht an der Instanz. Ohne Techniker
-  // wird die Liste LEER gereicht - eine Auswahl ohne Bezug waere eine Falle: Sie liesse
-  // ein Ticket einer Abteilung zuordnen, der der Zugewiesene gar nicht angehoert.
-  if (!assigneeId) return { ...options, departments: [], departmentsFor: null };
-
-  // Gefiltert wird ohne einen einzigen Zusatzaufruf: Jede Abteilung nennt ihre
-  // Mitarbeiter. Der umgekehrte Weg - die Zuordnung am Mitarbeiter nachschlagen - fuehrt
-  // in die Irre, weil dort nur die PRIMAERE Abteilung steht; ein Techniker, der drei
-  // angehoert, bekaeme genau eine angeboten.
-  const id = Number(assigneeId);
-  return {
-    ...options,
-    departments: options.departments
-      .filter((eintrag) => eintrag.employeeIds.includes(id))
-      .map(({ id: departmentId, name }) => ({ id: departmentId, name })),
-    departmentsFor: id,
-  };
 }
 
 /* -------------------------------------------------------------- Ticketanlage */

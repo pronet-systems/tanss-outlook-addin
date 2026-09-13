@@ -549,13 +549,6 @@ export async function render(ctx) {
               variant: "ghost",
               onClick: () => toggleRemitterExtra("search"),
             }),
-            ui.button({
-              label: T.ticketNeu.remitterCreate,
-              variant: "ghost",
-              disabled: state.company === null,
-              title: state.company === null ? T.ticketNeu.companyUnknown : "",
-              onClick: () => toggleRemitterExtra("create"),
-            }),
           ]),
         ]),
       );
@@ -571,12 +564,8 @@ export async function render(ctx) {
     }
     remitterExtraBox.dataset.mode = mode;
     remitterExtraBox.hidden = false;
-    if (mode === "search") {
-      ui.replace(remitterExtraBox, remitterSearch.root, remitterResults);
-      remitterSearch.focus();
-    } else {
-      ui.replace(remitterExtraBox, buildContactForm());
-    }
+    ui.replace(remitterExtraBox, remitterSearch.root, remitterResults);
+    remitterSearch.focus();
   }
 
   async function searchEmployees(term) {
@@ -659,115 +648,6 @@ export async function render(ctx) {
    * einen Melder, und wer ihn nicht hat, muesste sonst die Maske verlassen, in TANSS
    * wechseln, den Kontakt anlegen und von vorn beginnen.
    */
-  function buildContactForm() {
-    const sender = String(message.from ? message.from.name || "" : "");
-    const guessed = sender.split(/\s+/).filter(Boolean);
-    const firstInput = ui.input({
-      value: guessed.length > 1 ? guessed.slice(0, -1).join(" ") : "",
-    });
-    const lastInput = ui.input({ value: guessed.length > 0 ? guessed[guessed.length - 1] : "" });
-    const mailInput = ui.input({
-      value: message.from ? message.from.address : "",
-      type: "email",
-    });
-    const phoneInput = ui.input({ type: "tel" });
-    const box = ui.el("div", { class: "stack" });
-
-    async function createContact() {
-      if (!state.company) return;
-      ctx.clearError();
-      ui.setBusy(box, true);
-      const result = await api.post(`api/companies/${state.company.id}/contacts`, {
-        json: {
-          firstName: firstInput.value.trim(),
-          lastName: lastInput.value.trim(),
-          emailAddress: mailInput.value.trim(),
-          telephoneNumber: phoneInput.value.trim(),
-        },
-        signal: ctx.signal,
-      });
-      if (ctx.signal.aborted) return;
-      ui.setBusy(box, false);
-      if (!result.ok) {
-        ctx.showError(result.error);
-        return;
-      }
-      state.remitter = {
-        id: result.data.id,
-        name: result.data.name,
-        email: result.data.emailAddress,
-      };
-      remitterExtraBox.hidden = true;
-      markDirty();
-      renderRemitter();
-    }
-
-    ui.mount(
-      box,
-      ui.field({ label: T.ticketNeu.remitterFirstName, control: firstInput }),
-      ui.field({ label: T.ticketNeu.remitterLastName, control: lastInput, required: true }),
-      ui.field({ label: T.ticketNeu.remitterMail, control: mailInput, required: true }),
-      ui.field({ label: T.ticketNeu.remitterPhone, control: phoneInput, hint: T.app.optional }),
-      ui.row([
-        ui.button({ label: T.app.create, variant: "primary", onClick: () => void createContact() }),
-        ui.button({
-          label: T.app.cancel,
-          variant: "ghost",
-          onClick: () => {
-            remitterExtraBox.hidden = true;
-          },
-        }),
-      ]),
-    );
-    return box;
-  }
-
-  /* --------------------------------------------------------------- Auswahllisten */
-
-  /**
-   * Holt Typ, Status, Zuweisung und Abteilung in EINEM Aufruf.
-   *
-   * Neu geholt bei jedem Wechsel von Firma, Typ oder Zuweisung: TANSS macht die zulaessigen
-   * Werte voneinander abhaengig, und eine Liste, die nach dem Firmenwechsel stehen bleibt,
-   * bietet Werte an, die der Dienst beim Anlegen still verwirft.
-   */
-  async function loadOptions() {
-    ui.replace(optionsBox, ui.loading(T.app.working));
-    const result = await api.get("api/tickets/options", {
-      query: {
-        companyId: state.company ? state.company.id : null,
-        typeId: state.typeId,
-        assigneeId: state.assigneeId,
-        departmentId: state.departmentId,
-      },
-      signal: ctx.signal,
-    });
-    if (ctx.signal.aborted) return;
-    if (!result.ok) {
-      ctx.showError(result.error);
-      ui.replace(
-        optionsBox,
-        ui.button({ label: T.app.retry, variant: "ghost", onClick: () => void loadOptions() }),
-      );
-      return;
-    }
-    state.options = result.data || {};
-    if (Array.isArray(state.options.similarTickets) && state.options.similarTickets.length > 0) {
-      state.similar = state.options.similarTickets;
-    }
-    clampSelections();
-    renderNotices();
-    renderOptions();
-    renderActions();
-  }
-
-  /**
-   * Streicht gemerkte Werte, die es in der aktuellen Liste nicht mehr gibt.
-   *
-   * Ein vor Monaten gemerkter Tickettyp wuerde sonst mitgesendet; TANSS entfernt Felder,
-   * die der Anrufer nicht setzen darf, STILL - und die Erfolgsmeldung saehe danach genauso
-   * aus wie eine richtige.
-   */
   function clampSelections() {
     const options = state.options || {};
     if (!contains(options.types, state.typeId)) state.typeId = null;
@@ -832,24 +712,15 @@ export async function render(ctx) {
         void loadOptions();
       },
     });
-    // Die Abteilung haengt am Techniker. Ohne ihn gibt es nichts zu waehlen - und eine
-    // Auswahl ohne Bezug waere eine Falle: Sie liesse ein Ticket einer Abteilung
-    // zuordnen, der der Zugewiesene gar nicht angehoert. Das Feld bleibt deshalb gesperrt
-    // und sagt, was fehlt.
-    const abteilungen = Array.isArray(options.departments) ? options.departments : [];
-    const ohneTechniker = state.assigneeId === null;
     const departmentSelect = ui.select({
-      options: toSelectOptions(abteilungen),
+      options: toSelectOptions(options.departments),
       value: state.departmentId,
-      placeholder: ohneTechniker
-        ? T.ticketNeu.departmentNeedsAssignee
-        : (abteilungen.length === 0 ? T.ticketNeu.departmentNone : T.app.none),
+      placeholder: T.app.none,
       onChange: () => {
         state.departmentId = numberOrNull(departmentSelect.value);
         markDirty();
       },
     });
-    departmentSelect.disabled = ohneTechniker || abteilungen.length === 0;
 
     ui.replace(
       optionsBox,
@@ -1122,7 +993,17 @@ export async function render(ctx) {
     ctx.root,
     notices,
     ui.section({ heading: T.ticketNeu.heading, children: [companyBox, remitterBox] }),
-    ui.section({
+    // Titel und Text nehmen den meisten Platz ein und sind in aller Regel schon richtig
+    // vorbelegt. Wer sie nicht aendert, soll nicht an ihnen vorbeiscrollen muessen.
+    //
+    // Die Kopfzeile zeigt den aktuellen Titel mit: Eine zugeklappte Ziehharmonika, die
+    // verschweigt, was in ihr steht, waere schlechter als gar keine - man muesste sie
+    // oeffnen, nur um zu sehen, ob man sie oeffnen wollte.
+    ui.collapsible({
+      summary: ui.el("span", {}, [
+        ui.el("span", { text: T.ticketNeu.textFold }),
+        ui.el("span", { class: "fold-sub", text: state.title || "" }),
+      ]),
       children: [
         ui.field({ label: T.ticketNeu.title, control: titleInput, required: true }),
         ui.charCounter(titleInput, TITLE_MAX),

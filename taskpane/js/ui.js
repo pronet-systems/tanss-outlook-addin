@@ -447,6 +447,27 @@ export function setBusy(node, busy) {
 }
 
 /** Abschnitt mit Ueberschrift. Haelt die Seiten flach und die Ueberschriftenebene stabil. */
+/**
+ * Eine Ziehharmonika: zugeklappter Bereich mit Kopfzeile.
+ *
+ * Gebaut aus `details`/`summary` und nicht aus einem eigenen Knopf mit Umschaltlogik. Der
+ * Browser bringt das Auf- und Zuklappen, die Tastaturbedienung und die Ansage an
+ * Vorleseprogramme mit; jede Eigenbau-Loesung muesste das nachbilden und liesse
+ * erfahrungsgemaess die Haelfte davon weg.
+ *
+ * `summary` nimmt einen Knoten, keinen blossen Text: Die Kopfzeile soll mitsagen, was im
+ * zugeklappten Bereich steht. Eine Ziehharmonika, die ihren Inhalt verschweigt, ist
+ * schlechter als gar keine - der Benutzer muss sie oeffnen, nur um zu sehen, ob er sie
+ * oeffnen wollte.
+ */
+export function collapsible({ summary, children = [], open = false }) {
+  const kopf = el("summary", { class: "fold-head" });
+  mount(kopf, summary);
+  const box = el("details", { class: "fold", props: { open: Boolean(open) } });
+  mount(box, kopf, ...children);
+  return box;
+}
+
 export function section({ heading = "", children = [] }) {
   return el("section", { class: "section" }, [
     heading ? el("h2", { class: "section-heading", text: heading }) : null,

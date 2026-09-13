@@ -344,47 +344,27 @@ test("ein unbekannter Zustand faellt weiterhin auf den Sammelfall", async () => 
   assert.equal(result.error.code, "INTERNAL");
 });
 
-test("ohne Techniker bleibt die Abteilungsliste leer", async () => {
-  // Die Abteilung haengt am Zugewiesenen. Eine Auswahl ohne Bezug waere eine Falle: Sie
-  // liesse ein Ticket einer Abteilung zuordnen, der der Zugewiesene gar nicht angehoert -
-  // und in TANSS erreichte diese Zuweisung niemanden.
-  routes = {
-    "GET /api/v1/admin/ticketTypes": { content: [] },
-    "GET /api/v1/admin/ticketStates": { content: [] },
-    "GET /api/v1/employees/technicians": { content: [{ id: 5, name: "Anna" }] },
-    "GET /api/v1/employees/departments": { content: [{ id: 1, name: "Technik", employeeIds: [5] }] },
-  };
-  calls.length = 0;
-
-  const result = await api.get("api/tickets/options", { query: {} });
-  assert.equal(result.ok, true);
-  assert.deepEqual(result.data.departments, []);
-  assert.equal(result.data.departmentsFor, null);
-  assert.equal(calls.some((c) => c.path.startsWith("/api/v1/employees/5")), false,
-    "ohne Techniker wird seine Zugehoerigkeit gar nicht erst erfragt");
-});
-
-test("mit Techniker stehen nur SEINE Abteilungen zur Wahl", async () => {
+test("die Abteilungsliste wird nicht nach dem Techniker gefiltert", async () => {
+  // Und das ist keine Nachlaessigkeit, sondern die Grenze der Schnittstelle: TANSS gibt
+  // einem Technikertoken die Mehrfachzugehoerigkeit nirgends heraus. Am Mitarbeiter steht
+  // nur seine PRIMAERE Abteilung; an der Abteilung gibt es zwar ein Feld mit ihren
+  // Mitarbeitern, aber es wird in keiner Ausfuehrlichkeitsstufe ausgeliefert.
+  //
+  // Beide Wege sind gebaut und gemessen worden, beide sind gescheitert. Eine Filterung auf
+  // halber Strecke waere schlechter als keine: Sie saehe richtig aus und liesse
+  // Abteilungen verschwinden, denen der Techniker sehr wohl angehoert. Dieser Fall haelt
+  // fest, dass hier bewusst NICHT gefiltert wird.
   routes = {
     "GET /api/v1/admin/ticketTypes": { content: [] },
     "GET /api/v1/admin/ticketStates": { content: [] },
     "GET /api/v1/employees/technicians": { content: [{ id: 5, name: "Anna" }] },
     "GET /api/v1/employees/departments": {
-      content: [
-        { id: 1, name: "Geschäftsleitung", employeeIds: [5] },
-        { id: 2, name: "Technik", employeeIds: [5, 9] },
-        { id: 3, name: "Vertrieb", employeeIds: [9] },
-      ],
+      content: [{ id: 1, name: "Geschäftsleitung" }, { id: 2, name: "Technik" }],
     },
   };
-  calls.length = 0;
 
   const result = await api.get("api/tickets/options", { query: { assigneeId: 5 } });
   assert.equal(result.ok, true);
   assert.deepEqual(result.data.departments,
-    [{ id: 1, name: "Geschäftsleitung" }, { id: 2, name: "Technik" }],
-    "ALLE Abteilungen des Technikers, nicht nur die erste");
-  assert.equal(result.data.departmentsFor, 5);
-  assert.equal(calls.some((c) => c.path === "/api/v1/employees/5"), false,
-    "es braucht keinen Zusatzaufruf - die Liste traegt die Zuordnung mit sich");
+    [{ id: 1, name: "Geschäftsleitung" }, { id: 2, name: "Technik" }]);
 });

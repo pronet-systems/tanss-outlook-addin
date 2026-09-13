@@ -341,13 +341,8 @@ export class TanssRepository {
         .map(namedId), failures),
       this._list("/api/v1/employees/technicians", signal,
         (raw) => raw.filter((item) => item && item.id).map(namedId), failures),
-      // Die Zuordnung wird BEHALTEN, nicht weggeworfen: Jede Abteilung nennt ihre
-      // Mitarbeiter. Das ist die einzige Stelle, an der die Mehrfachzugehoerigkeit eines
-      // Technikers vollstaendig steht - am Mitarbeiter selbst fuehrt TANSS nur seine
-      // primaere Abteilung, und wer dort liest, bietet einem Techniker mit drei
-      // Abteilungen genau eine an.
       this._list("/api/v1/employees/departments", signal,
-        (raw) => raw.filter((item) => item && item.id).map(departmentRow), failures),
+        (raw) => raw.filter((item) => item && item.id).map(namedId), failures),
     ]);
 
     const options = {
@@ -922,26 +917,6 @@ export class TanssRepository {
     const { applied, ignored } = appliedFields(body, content);
     return { supportId: created.id, applied, ignored, syncGroup: created.syncGroup };
   }
-}
-
-/**
- * Eine Abteilung samt der Kennungen ihrer Mitarbeiter.
- *
- * `employeeIds` ist der Grund, warum diese Zeile nicht auf {id, name} verkuerzt wird: Es
- * ist die einzige Stelle der Schnittstelle, an der die Mehrfachzugehoerigkeit vollstaendig
- * steht. Am Mitarbeiter selbst fuehrt TANSS nur seine primaere Abteilung.
- *
- * Eine LEERE Liste heisst "nicht feststellbar" und fuehrt dazu, dass die Abteilung
- * niemandem angeboten wird - nicht dazu, dass sie allen angeboten wird.
- */
-export function departmentRow(item) {
-  return {
-    id: num(item.id),
-    name: str(item.name),
-    employeeIds: (Array.isArray(item.employeeIds) ? item.employeeIds : [])
-      .map(num)
-      .filter(Boolean),
-  };
 }
 
 /**

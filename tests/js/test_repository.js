@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { TanssRepository, departmentRow, isFreshEmlDocument, shapeOf } from "../../taskpane/js/tanss/repository.js";
+import { TanssRepository, isFreshEmlDocument, shapeOf } from "../../taskpane/js/tanss/repository.js";
 import { ApiError, reasonOf } from "../../taskpane/js/tanss/errors.js";
 import { priorityOrNull, ticketWrite } from "../../taskpane/js/tanss/models.js";
 
@@ -591,41 +591,6 @@ test("ohne Route und ohne Konfiguration bleibt die Typenliste leer", async () =>
   };
   const options = await new TanssRepository({ client, config: {} }).ticketOptions({});
   assert.deepEqual(options.types, []);
-});
-
-/* --------------------------------------------------- Abteilung am Techniker */
-
-test("eine Abteilungszeile behaelt ihre Belegschaft", () => {
-  // Sie ist die einzige Stelle der Schnittstelle, an der die Mehrfachzugehoerigkeit
-  // vollstaendig steht. Am Mitarbeiter selbst fuehrt TANSS nur seine PRIMAERE Abteilung -
-  // wer dort liest, bietet einem Techniker mit drei Abteilungen genau eine an. Genau so
-  // ist es im Betrieb aufgefallen.
-  assert.deepEqual(departmentRow({ id: 3, name: "Technik", employeeIds: [5, 9] }),
-    { id: 3, name: "Technik", employeeIds: [5, 9] });
-});
-
-test("fehlt die Belegschaft, ist sie leer - und die Abteilung wird niemandem angeboten", () => {
-  // Kein Rueckfall auf "alle": Das waere genau der Zustand, der abgestellt werden soll.
-  assert.deepEqual(departmentRow({ id: 3, name: "Technik" }).employeeIds, []);
-  assert.deepEqual(departmentRow({ id: 3, name: "Technik", employeeIds: "unsinn" }).employeeIds, []);
-});
-
-test("die Abteilungsliste kommt mit Belegschaft aus der Sammelabfrage", async () => {
-  // Ohne Zusatzaufruf: Die Liste wird beim Oeffnen ohnehin geholt.
-  const client = fakeClient({
-    "GET /api/v1/admin/ticketTypes": { content: [] },
-    "GET /api/v1/admin/ticketStates": { content: [] },
-    "GET /api/v1/employees/technicians": { content: [] },
-    "GET /api/v1/employees/departments": {
-      content: [
-        { id: 1, name: "Geschäftsleitung", employeeIds: [5] },
-        { id: 2, name: "Technik", employeeIds: [5, 9] },
-        { id: 3, name: "Vertrieb", employeeIds: [9] },
-      ],
-    },
-  });
-  const options = await new TanssRepository({ client, config: {} }).ticketOptions();
-  assert.deepEqual(options.departments.map((d) => d.employeeIds), [[5], [5, 9], [9]]);
 });
 
 /* ------------------------------------------------------------- Prioritaet */

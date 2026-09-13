@@ -578,3 +578,44 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* --------------------------------------------------------------- Ziehharmonika */
+
+/* Der Rahmen macht sichtbar, dass hier etwas zusammengeklappt ist - ohne ihn liest sich
+   die Kopfzeile wie eine gewoehnliche Zeile, und niemand klickt sie an. */
+.fold {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0;
+  margin: 0 0 12px;
+}
+
+.fold-head {
+  cursor: pointer;
+  padding: 10px 12px;
+  font-weight: 600;
+  list-style: none;
+}
+
+/* Das Dreieck des Browsers wird durch ein eigenes ersetzt, damit es in beiden
+   Zustaenden an derselben Stelle steht und die Kopfzeile nicht verrutscht. */
+.fold-head::-webkit-details-marker { display: none; }
+.fold-head::before {
+  content: "▸";
+  display: inline-block;
+  width: 1em;
+  color: var(--fg-muted);
+}
+.fold[open] > .fold-head::before { content: "▾"; }
+
+.fold-head .fold-sub {
+  display: block;
+  font-weight: 400;
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fold > *:not(.fold-head) { padding: 0 12px; }
+.fold > *:last-child { padding-bottom: 12px; }
