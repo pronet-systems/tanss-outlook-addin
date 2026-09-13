@@ -19,12 +19,11 @@
     provider_name         Herausgeber des Add-ins
     support_url           Ziel von SupportUrl
     tanss_frontend_origin Herkunft der TANSS-Weboberflaeche fuer AppDomains
-    entra_client_id       Entra-Anwendungs-Id; kommt nur im WebApplicationInfo-Block vor
-    entra_resource_uri    api://<host>/<clientId>; ebenfalls nur dort
 
-  Der Bereich zwischen den Marken @entra-only:begin@ und @entra-only:end@ wird
-  vollstaendig entfernt, wenn keine Anwendungs-Id angegeben ist. Die Marken sind
-  XML-Kommentare, damit auch die unausgefuellte Vorlage wohlgeformtes XML bleibt.
+  Eine Anwendungs-Id fuer die Microsoft-Anmeldung kommt NICHT im Manifest vor: Das Pane
+  holt sein Token ueber die verschachtelte Anmeldung, und die verlangt dafuer nichts im
+  Manifest. Die Id steht stattdessen als Parameter in page_url - so bringt jeder Kunde
+  seine eigene mit, auch bei einer gemeinsam genutzten Ablage.
 
   Dieser Kopf erklaert die VORLAGE und wird beim Rendern entfernt. Was danach an
   Kommentaren stehenbleibt, erklaert das MANIFEST und gehoert in die erzeugte Datei.
@@ -276,32 +275,6 @@
         </bt:LongStrings>
       </Resources>
 
-      <!-- @entra-only:begin@ -->
-      <!-- Nur erzeugt, wenn entra.tenant_id und entra.client_id gesetzt sind; sonst
-           entfernt manifest.py diesen Bereich samt Marken.
-           Fuer NAA ist der Block BEDEUTUNGSLOS: NAA haengt allein an der MSAL-Konfiguration
-           im Taskpane und an der SPA-Redirect-URI brk-multihub://<host> der
-           Entra-Registrierung; im Manifest steht dafuer nichts. Der Block traegt den
-           zweiten Weg, OfficeRuntime.auth.getAccessToken - ohne ihn scheitert der mit
-           13000 - und loest bei der zentralen Bereitstellung die Administratorzustimmung
-           aus.
-           GENAU DESHALB stehen hier nur openid und profile: jeder weitere Scope verlangt
-           eine erneute Zustimmung des Administrators, und bis sie vorliegt, ist das Add-in
-           fuer alle Benutzer gesperrt. Mail.Read und Calendars.Read fordert MSAL ohnehin
-           zur Laufzeit an; offline_access machte Refresh-Token auf fremde Postfaecher
-           erhaeltlich, die kein Codepfad dieses Add-ins braucht.
-           Der Platz ist vorgeschrieben: fuer Outlook ans ENDE des VersionOverridesV1_1-
-           Blocks, hinter <Resources>. Im aeusseren V1_0-Block kennt das Schema
-           <WebApplicationInfo> ueberhaupt nicht. -->
-      <WebApplicationInfo>
-        <Id>${entra_client_id}</Id>
-        <Resource>${entra_resource_uri}</Resource>
-        <Scopes>
-          <Scope>openid</Scope>
-          <Scope>profile</Scope>
-        </Scopes>
-      </WebApplicationInfo>
-      <!-- @entra-only:end@ -->
 
     </VersionOverrides>
   </VersionOverrides>

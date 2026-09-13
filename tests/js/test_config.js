@@ -188,3 +188,38 @@ test("der angezeigte Name stammt aus der wirklich benutzten Adresse", async () =
   assert.equal(apiHost(), "tanss.kunde.de");
   delete globalThis.location;
 });
+
+/* ------------------------------------------------- Die Anwendungs-Id fuer Graph */
+
+import { isClientId } from "../../taskpane/js/config.js";
+
+test("die Anwendungs-Id kommt bevorzugt aus der Adresse", async () => {
+  // Auf einer gemeinsam genutzten Ablage ist die config.json fuer alle Kunden dieselbe.
+  // Die Registrierung gehoert aber je Mandant - sie muss denselben Weg nehmen wie die
+  // TANSS-Adresse, naemlich ueber das Manifest.
+  const id = "11112222-3333-4444-5555-666677778888";
+  globalThis.location = { href: `https://addon.example/?entra=${id}` };
+  serve({ body: JSON.stringify({ entra: { clientId: "99998888-7777-6666-5555-444433332222" } }) });
+  assert.equal((await load()).entra.clientId, id);
+  delete globalThis.location;
+});
+
+test("ohne Angabe in der Adresse gilt die aus der Datei", async () => {
+  const id = "99998888-7777-6666-5555-444433332222";
+  globalThis.location = { href: "https://addon.example/" };
+  serve({ body: JSON.stringify({ entra: { clientId: id } }) });
+  assert.equal((await load()).entra.clientId, id);
+  delete globalThis.location;
+});
+
+test("was keine Kennung ist, wird verworfen statt weitergereicht", async () => {
+  globalThis.location = { href: "https://addon.example/?entra=nicht-meine-id" };
+  serve({ body: "{}" });
+  assert.equal((await load()).entra.clientId, "");
+  delete globalThis.location;
+
+  assert.equal(isClientId("11112222-3333-4444-5555-666677778888"), true);
+  assert.equal(isClientId("11112222333344445555666677778888"), false);
+  assert.equal(isClientId(""), false);
+  assert.equal(isClientId(null), false);
+});

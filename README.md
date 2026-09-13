@@ -343,9 +343,17 @@ mit der delegierten Berechtigung `Mail.Read` und einer Rückadresse unter der Pl
 brk-multihub://<hostname-ihrer-ablage>
 ```
 
-Ob diese Rückadresse wirklich eingetragen ist, prüft der Generator mit — es ist der
-Fehler, der sonst erst beim Techniker auftaucht, mit einer Meldung, die die Ursache
-nicht nennt.
+Nur die **Herkunft**, ohne Pfad. Liegt das Pane unter
+`https://beispiel.github.io/tanss-outlook-addin`, lautet die Rückadresse
+`brk-multihub://beispiel.github.io` — nicht die volle Adresse.
+
+Die Anwendungs-Id tragen Sie im Generator ein; sie wandert in die Adressen des
+Manifests. Im Manifest selbst steht **kein** Anmeldeblock: Das Pane holt sein Token über
+die verschachtelte Anmeldung, und die verlangt dafür nichts im Manifest.
+
+Ob die Anwendung existiert und ob die Rückadresse wirklich eingetragen ist, prüft der
+Generator mit — das ist der Fehler, der sonst erst beim Techniker auftaucht, mit einer
+Meldung, die die Ursache nicht nennt.
 
 ---
 

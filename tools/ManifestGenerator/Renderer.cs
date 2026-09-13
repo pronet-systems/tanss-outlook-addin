@@ -22,9 +22,6 @@ public static partial class Renderer
 {
     private const string NoteBegin = "<!-- @vorlage:begin@ -->";
     private const string NoteEnd = "<!-- @vorlage:end@ -->";
-    private const string EntraBegin = "<!-- @entra-only:begin@ -->";
-    private const string EntraEnd = "<!-- @entra-only:end@ -->";
-
     private const string NsApp = "http://schemas.microsoft.com/office/appforoffice/1.1";
 
     [GeneratedRegex(@"\$\{[a-z_]+\}")]
@@ -50,12 +47,6 @@ public static partial class Renderer
         var text = Template();
         text = RemoveBlock(text, NoteBegin, NoteEnd);
 
-        // Ohne Anwendungs-Id faellt der ganze Block weg statt leer dazustehen: Ein
-        // WebApplicationInfo ohne Id laesst die Installation scheitern.
-        text = string.IsNullOrEmpty(options.EntraClientId)
-            ? RemoveBlock(text, EntraBegin, EntraEnd)
-            : text.Replace(EntraBegin, "").Replace(EntraEnd, "");
-
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["base_url"] = options.AssetBase,
@@ -66,8 +57,6 @@ public static partial class Renderer
             ["provider_name"] = options.ProviderName,
             ["support_url"] = (options.SupportUrl?.ToString() ?? options.AssetBase),
             ["tanss_frontend_origin"] = options.FrontendOrigin,
-            ["entra_client_id"] = options.EntraClientId,
-            ["entra_resource_uri"] = options.EntraResourceUri,
         };
 
         foreach (var (key, value) in values)

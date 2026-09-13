@@ -44,7 +44,15 @@ public sealed record Options
 
     public Uri? SupportUrl { get; init; }
 
-    /// <summary>Leer: Der Block fuer die Microsoft-Anmeldung entfaellt vollstaendig.</summary>
+    /// <summary>
+    /// Anwendungs-Id der Entra-Registrierung, oder leer.
+    /// </summary>
+    /// <remarks>
+    /// Sie wandert als Parameter in die Seitenadresse, nicht in einen Manifestblock: Das
+    /// Pane holt sein Token ueber die verschachtelte Anmeldung, und die verlangt dafuer
+    /// nichts im Manifest. Ohne Id setzt das Pane die Nachricht aus Bordmitteln zusammen -
+    /// eine Rekonstruktion statt des Originals.
+    /// </remarks>
     public string EntraClientId { get; init; } = "";
 
     /// <summary>
@@ -77,10 +85,6 @@ public sealed record Options
 
     /// <summary>Herkunft der TANSS-Oberflaeche, wie AppDomains sie erwartet.</summary>
     public string FrontendOrigin => TanssFrontend.GetLeftPart(UriPartial.Authority);
-
-    /// <summary>Der Ressourcenbezeichner der Entra-Anwendung. Leer ohne Anwendungs-Id.</summary>
-    public string EntraResourceUri =>
-        string.IsNullOrEmpty(EntraClientId) ? "" : $"api://{AddinBase.Host}/{EntraClientId}";
 
     /// <summary>
     /// Baut die Angaben aus Formularfeldern. Wirft <see cref="OptionsError"/> mit dem

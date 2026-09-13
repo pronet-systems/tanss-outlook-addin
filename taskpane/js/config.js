@@ -65,7 +65,13 @@ const DEFAULTS = {
    */
   instance: "",
 
-  /** Die Anwendungs-Id einer Entra-Registrierung - siehe `entra` weiter unten. */
+  /**
+   * Die Entra-Registrierung fuer den Zugriff auf die Originalnachricht.
+   *
+   * Die Id kommt bevorzugt aus der Adresse des Panes - sie steht im Manifest, das jeder
+   * Kunde selbst einspielt. Der Eintrag hier ist der Rueckfall fuer eine Installation
+   * mit eigener Ablage.
+   */
   entra: {
     /**
      * Ohne diese Id gibt es keinen Weg an die vollstaendige Originalnachricht: Das Pane
@@ -180,6 +186,7 @@ export async function load() {
   }
 
   applyApiBase(merged);
+  applyEntraClientId(merged);
   if (!merged.instance) merged.instance = deriveInstance(merged);
   current = merged;
   return current;
@@ -251,9 +258,39 @@ function applyApiBase(merged) {
   merged.apiBase = "";
 }
 
+/**
+ * Die Anwendungs-Id fuer die Microsoft-Anmeldung.
+ *
+ * Sie nimmt denselben Weg wie die TANSS-Adresse: Vorrang hat der Parameter aus der
+ * Adresse des Panes, denn der stammt aus dem Manifest, und das spielt der Administrator
+ * des Mandanten ein. Auf einer gemeinsam genutzten Ablage ist die config.json fuer alle
+ * Kunden dieselbe - eine dort eingetragene Id waere entweder falsch oder erzwaenge je
+ * Kunde eine eigene Ablage.
+ *
+ * Geprueft wird nur die Form: Eine Id, die keine Kennung ist, wird verworfen. Mehr ist
+ * hier nicht zu pruefen - eine falsche Id fuehrt dazu, dass der Anmeldedienst die
+ * Anwendung nicht kennt, und das meldet er deutlich.
+ */
+function applyEntraClientId(merged) {
+  const ausDerAdresse = readQueryParam("entra");
+  const kandidat = ausDerAdresse || merged.entra.clientId || "";
+  merged.entra.clientId = isClientId(kandidat) ? kandidat : "";
+}
+
+/** Sieht das wie eine Anwendungs-Id aus? */
+export function isClientId(value) {
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+    .test(String(value || "").trim());
+}
+
 function readQueryApi() {
+  return readQueryParam("tanss");
+}
+
+/** Ein Parameter aus der Adresse des Panes. Leer, wenn es ihn nicht gibt. */
+function readQueryParam(name) {
   try {
-    const value = new URL(globalThis.location.href).searchParams.get("tanss");
+    const value = new URL(globalThis.location.href).searchParams.get(name);
     return value ? String(value).trim() : "";
   } catch {
     return "";
