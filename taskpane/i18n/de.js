@@ -189,7 +189,6 @@ export const T = deepFreeze({
     priority: "Priorität",
     priorityDefault: "— Vorgabe von TANSS —",
     assignee: "Zuweisung",
-    internal: "Intern",
     attachMail: "E-Mail am Ticket ablegen",
     similarHeading: "Ähnliche Tickets",
     similarHint: "Vielleicht gehört diese Mail an ein bestehendes Ticket.",
@@ -216,7 +215,6 @@ export const T = deepFreeze({
     attaching: "Mail wird abgelegt …",
     successHeading: "E-Mail an Ticket {id} abgelegt.",
     forceLabel: "Trotzdem anhängen",
-    internal: "Als interne Mail kennzeichnen",
   },
 
   termin: {

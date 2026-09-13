@@ -719,3 +719,24 @@ test("kein Objektliteral setzt denselben Schluessel zweimal", () => {
   }
   assert.deepEqual(fundstellen, []);
 });
+
+test("kein Formularfeld wird gesetzt, das niemand liest", () => {
+  // Ein Bedienelement, das nichts bewirkt, ist schlimmer als keines: Der Techniker
+  // glaubt, etwas eingestellt zu haben. Genau so stand jahrelang ein Kontrollkaestchen
+  // "Intern" in zwei Masken - der Wert wurde in das Formular geschrieben und von keiner
+  // Zeile je gelesen.
+  const gesetzt = new Map();
+  for (const datei of dateienUnter(join(TASKPANE, "js", "pages"), [".js"])) {
+    for (const treffer of ohneKommentare(datei).matchAll(/form\.set\(\s*["'`]([^"'`]+)["'`]/g)) {
+      if (!gesetzt.has(treffer[1])) gesetzt.set(treffer[1], kurz(datei));
+    }
+  }
+
+  const leser = [join(TASKPANE, "js", "api.js"),
+    ...dateienUnter(join(TASKPANE, "js", "services"), [".js"])]
+    .map((pfad) => ohneKommentare(pfad)).join("\n");
+
+  const tot = [...gesetzt].filter(([name]) => !leser.includes(`"${name}"`))
+    .map(([name, datei]) => `${datei}: ${name}`);
+  assert.deepEqual(tot, [], "gesetzt, aber nirgends gelesen");
+});

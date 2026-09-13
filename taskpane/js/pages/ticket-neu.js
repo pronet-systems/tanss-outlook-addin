@@ -254,7 +254,6 @@ export async function render(ctx) {
     content: quoted.body,
     trailer: quoted.trailer,
     attachMail: true,
-    internal: false,
     typeId: numberOrNull(prefs[PREF_TYPE]),
     // Nicht gemerkt: Die Prioritaet gehoert zum einzelnen Vorgang, nicht zur Gewohnheit.
     // Ein vor Wochen gewaehlter Wert stillschweigend wieder einzusetzen hiesse, jedem
@@ -322,14 +321,6 @@ export async function render(ctx) {
     checked: state.attachMail,
     onChange: (event) => {
       state.attachMail = event.target.checked === true;
-      markDirty();
-    },
-  });
-  const internalCheck = ui.checkbox({
-    label: T.ticketNeu.internal,
-    checked: state.internal,
-    onChange: (event) => {
-      state.internal = event.target.checked === true;
       markDirty();
     },
   });
@@ -757,7 +748,6 @@ export async function render(ctx) {
         control: assigneeSelect,
         required: options.forceAssignment === true,
       }),
-      internalCheck.root,
     );
   }
 
@@ -843,7 +833,6 @@ export async function render(ctx) {
         priority: state.priority,
         statusId: state.statusId,
         assignedToEmployeeId: state.assigneeId,
-        internal: state.internal,
       }),
     );
 
@@ -862,8 +851,7 @@ export async function render(ctx) {
       form.set("eml", mail.data.blob, mail.data.filename);
       form.set("internetMessageId", mail.data.internetMessageId || "");
       form.set("subject", mail.data.subject || "");
-      form.set("source", mail.data.source);
-      for (const warning of mail.data.warnings) {
+        for (const warning of mail.data.warnings) {
         ui.mount(notices, ui.banner({ tone: "warn", label: warning }));
       }
     }
@@ -992,8 +980,6 @@ export async function render(ctx) {
     form.set("eml", mail.data.blob, mail.data.filename);
     form.set("internetMessageId", mail.data.internetMessageId || "");
     form.set("subject", mail.data.subject || "");
-    form.set("source", mail.data.source);
-    form.set("internal", state.internal ? "true" : "false");
 
     const result = await api.post(`api/tickets/${ticketId}/mail`, {
       form,

@@ -92,7 +92,8 @@ export function ticketListFilter({ ids, companies, includeDoneTickets, itemsPerP
  * - **Zuordnung nur vollstaendig.** Ein `linkId` ohne `linkTypeId` verwirft der Server
  *   stillschweigend.
  *
- * Ein `internal`-Kennzeichen wandert bewusst NICHT mit: TANSS kennt es am Ticket nicht.
+ * Ein `internal`-Kennzeichen gibt es hier nicht: TANSS kennt es am Ticket nicht. Die
+ * Maske bot dafuer lange ein Kontrollkaestchen an, das nichts bewirkte - es ist entfernt.
  * Das gleichnamige Feld der Maske steuert die Mailablage.
  */
 export function ticketWrite(draft) {

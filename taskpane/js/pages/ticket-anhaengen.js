@@ -111,7 +111,6 @@ export async function render(ctx) {
       ),
     ),
     selected: null,
-    internal: false,
     term: "",
     busy: false,
     /** Letztes Suchergebnis - damit das Anwaehlen einer Zeile keine Anfrage kostet. */
@@ -154,14 +153,6 @@ export async function render(ctx) {
     onChange: (event) => {
       state.includeDone = event.target.checked === true;
       void loadTickets();
-    },
-  });
-
-  const internalCheck = ui.checkbox({
-    label: T.ticketAnhaengen.internal,
-    checked: state.internal,
-    onChange: (event) => {
-      state.internal = event.target.checked === true;
     },
   });
 
@@ -274,7 +265,6 @@ export async function render(ctx) {
                 onAction: () => void attach(true),
               })
             : null,
-          internalCheck.root,
           ui.el("p", { class: "muted", text: attachmentLabel() }),
           mime.currentSource() === "officejs"
             ? ui.el("p", { class: "muted", text: T.mail.reconstructed })
@@ -337,8 +327,6 @@ export async function render(ctx) {
     form.set("eml", mail.data.blob, mail.data.filename);
     form.set("internetMessageId", mail.data.internetMessageId || "");
     form.set("subject", mail.data.subject || "");
-    form.set("source", mail.data.source);
-    form.set("internal", state.internal ? "true" : "false");
     if (force) form.set("force", "true");
 
     statusLine.textContent = T.ticketAnhaengen.attaching;
