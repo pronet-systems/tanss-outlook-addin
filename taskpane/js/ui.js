@@ -463,7 +463,11 @@ export function setBusy(node, busy) {
 export function collapsible({ summary, children = [], open = false }) {
   const kopf = el("summary", { class: "fold-head" });
   mount(kopf, summary);
-  const box = el("details", { class: "fold", props: { open: Boolean(open) } });
+  // `open` geht ueber `attrs` und nicht ueber `props`: Es ist ein boolesches ATTRIBUT,
+  // und genau dafuer ist `attrs` da - `false` laesst es weg, `true` setzt es leer. Der
+  // Weg ueber `props` waere abgewiesen worden, und zu Recht: Die Erlaubnisliste dort
+  // haelt fern, woran beim Schreiben dieser Zeile niemand gedacht hat.
+  const box = el("details", { class: "fold", attrs: { open: open === true } });
   mount(box, kopf, ...children);
   return box;
 }

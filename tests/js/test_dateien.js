@@ -634,3 +634,26 @@ test("die Prioritaetsstufen tragen keine Worte", () => {
       `Die Prioritaetsliste behauptet eine Richtung: "${wort}"`);
   }
 });
+
+test("die Bausteine setzen nur zugelassene Eigenschaften", () => {
+  // `ui.el` fuehrt eine Erlaubnisliste und WIRFT bei allem anderen. Weil es fuer die
+  // Oberflaeche kein DOM in den Faellen gibt, faellt so ein Fehler erst im laufenden
+  // Outlook auf - als "Etwas ist schiefgegangen, womit dieses Add-in nicht gerechnet
+  // hat", ohne jeden Hinweis auf die Ursache. Genau so ist es passiert.
+  const quelle = lies(join(TASKPANE, "js", "ui.js"));
+  const liste = quelle.slice(quelle.indexOf("ALLOWED_PROPS = new Set(["), quelle.indexOf("]);"));
+  const zugelassen = new Set([...liste.matchAll(/"([a-zA-Z]+)"/g)].map((t) => t[1]));
+  assert.ok(zugelassen.size > 5, "die Erlaubnisliste wurde nicht gefunden");
+
+  const fundstellen = [];
+  for (const datei of [...dateienUnter(join(TASKPANE, "js", "pages"), [".js"]),
+    join(TASKPANE, "js", "ui.js")]) {
+    for (const treffer of ohneKommentare(datei).matchAll(/props:\s*\{([^}]*)\}/g)) {
+      for (const name of treffer[1].matchAll(/([a-zA-Z]+)\s*:/g)) {
+        if (!zugelassen.has(name[1])) fundstellen.push(`${kurz(datei)}: ${name[1]}`);
+      }
+    }
+  }
+  assert.deepEqual(fundstellen, [],
+    "nicht zugelassene Eigenschaft - das wirft erst zur Laufzeit, im echten Outlook");
+});
