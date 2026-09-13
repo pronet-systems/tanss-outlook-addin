@@ -909,27 +909,32 @@ export async function render(ctx) {
    */
   function renderSuccess(created) {
     const mail = created.mail || {};
-    const children = [
-      ui.el("h2", {
-        class: "section-heading",
-        text: t("ticketNeu.successHeading", { id: created.ticketId }),
-      }),
-    ];
+
+    // EIN Band, und es beginnt mit der Ticketnummer.
+    //
+    // Sie ist das Einzige, was nach diesem Vorgang wirklich zaehlt: Ab jetzt kennt nur
+    // noch diese Antwort die Nummer. Frueher stand sie als Ueberschrift darueber und das
+    // Band sagte etwas ueber die Mail - der Blick fiel auf das Farbige, und das nannte
+    // gerade nicht die Nummer.
+    //
+    // Was mit der Mail geschah, kommt nur dann dazu, wenn es NICHT der gewoehnliche
+    // Erfolg ist. Ein Satz, der immer dasselbe sagt, wird nicht mehr gelesen.
+    const nummer = t("ticketNeu.successHeading", { id: created.ticketId });
+    const children = [];
 
     if (mail.status === "attached") {
-      // Ein Satz, gleich welchen Weg die Bestaetigung genommen hat. Woher sie stammt,
-      // steht weiterhin in den Daten (`confirmedBy`) - aber es ist kein Unterschied, der
-      // den Techniker etwas angeht: Die Nachricht haengt, und in diesem Zweig gibt es
-      // ohnehin keinen Knopf zum Wiederholen, vor dem zu warnen waere.
-      children.push(ui.banner({ tone: "ok", label: T.ticketNeu.successMailAttached }));
+      children.push(ui.banner({ tone: "ok", label: nummer }));
     } else if (mail.status === "skipped") {
-      children.push(ui.banner({ tone: "info", label: T.ticketNeu.successMailSkipped }));
+      children.push(ui.banner({
+        tone: "info",
+        label: `${nummer} ${T.ticketNeu.successMailSkipped}`,
+      }));
     } else {
       const helps = !RETRY_POINTLESS.has(String(mail.cause || ""));
       children.push(
         ui.banner({
           tone: "warn",
-          label: mail.message || T.ticketNeu.successMailFailed,
+          label: `${nummer} ${mail.message || T.ticketNeu.successMailFailed}`,
           actionLabel: helps ? T.ticketNeu.retryMail : "",
           onAction: helps ? () => void retryMail(created.ticketId) : null,
         }),
