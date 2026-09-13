@@ -1,5 +1,8 @@
 # TANSS Outlook Add-in
 
+**E-Mails, Tickets und Termine zwischen Outlook und TANSS — Open-Source-Add-in für
+Microsoft 365.**
+
 Ein Outlook-Add-in für **TANSS**. Es legt E-Mails samt Anhängen an Tickets ab, erzeugt
 aus einer E-Mail ein Ticket und pflegt zu einem Outlook-Termin den zugehörigen
 TANSS-Einsatz.
@@ -43,6 +46,7 @@ Manifestdatei, die Sie einmalig in Ihr Microsoft 365 Admin Center laden — sieh
 - [Aktualisieren](#aktualisieren)
 - [Wenn etwas nicht geht](#wenn-etwas-nicht-geht)
 - [Entwicklung](#entwicklung)
+- [Weitere TANSS-Werkzeuge](#weitere-tanss-werkzeuge)
 - [Lizenz](#lizenz)
 
 ---
@@ -663,6 +667,24 @@ Browser lädt. Dass sie diese Gestalt behält, wird mitgeprüft.
 Die einzige mitgelieferte Fremdbibliothek ist `@azure/msal-browser`. Sie liegt mit
 fester Version und SHA-256 in `taskpane/vendor/CHECKSUMS`; ein Test vergleicht bei jedem
 Lauf.
+
+---
+
+## Weitere TANSS-Werkzeuge
+
+Aus demselben Haus, mit demselben Zuschnitt: quelloffen, und jedes spricht unmittelbar mit der
+eigenen TANSS-Instanz — ohne fremden Zwischendienst.
+
+- **[TANSS Log-Watcher](https://github.com/pronet-systems/tanss-log-watcher)** —
+  erkennt Fernwartungssitzungen (AnyDesk, TeamViewer, Remotedesktop, ScreenConnect und weitere)
+  am Windows-Arbeitsplatz und bucht sie als Fernwartung.
+- **[TANSS Git-Connector](https://github.com/pronet-systems/tanss-git-connector)** —
+  bucht Git-Commits per `post-commit`-Hook als Fernwartung. Linux, Windows, macOS.
+- **[TANSS Calendar Sync](https://github.com/pronet-systems/tanss-calendar-sync)** —
+  gleicht Termine zwischen TANSS und Microsoft 365 in beide Richtungen ab.
+
+Dahinter steht die [ProNet Systems GmbH](https://www.pronet-systems.de), ein IT-Systemhaus aus
+Arnsberg.
 
 ---
 
