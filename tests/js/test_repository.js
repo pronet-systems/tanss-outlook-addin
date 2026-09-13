@@ -358,3 +358,83 @@ test("eine still als Dokument abgelegte Nachricht wird erkannt", () => {
   // Ein gewoehnliches Dokument.
   assert.equal(isFreshEmlDocument({ fileName: "Angebot.pdf", date: now }, 5, now), false);
 });
+
+/* ------------------------------------------------------------- Firmenbindung */
+
+test("ein Mitarbeiter einer fremden Firma wird gar nicht erst geliefert", async () => {
+  // Der gemeldete Fehler aus dem ersten echten Lauf: Es liess sich ein Ansprechpartner
+  // waehlen, der nicht zur gewaehlten Firma gehoert. Die Anfrage gibt die Firma zwar mit,
+  // aber ob TANSS danach filtert, ist eine Zusage - und eine ungepruefte Zusage ist keine.
+  // Ein Ticket am falschen Kunden mit dem Namen einer fremden Person ist kein
+  // Schoenheitsfehler, deshalb steht die Sperre hier und nicht in der Maske.
+  const client = fakeClient({
+    "PUT /api/v1/search": {
+      content: {
+        employees: [
+          { id: 1, name: "Eigene", companyAssignments: [{ companyId: 3 }] },
+          { id: 2, name: "Fremde", companyAssignments: [{ companyId: 9 }] },
+        ],
+      },
+      meta: {},
+    },
+  });
+  const ergebnis = await new TanssRepository({ client, config: {} })
+    .searchEmployees("mu", { companyId: 3 });
+
+  assert.deepEqual(ergebnis.items.map((r) => r.name), ["Eigene"]);
+  assert.equal(ergebnis.unverified, false);
+});
+
+test("ein Mitarbeiter mit mehreren Firmen bleibt, wenn die gesuchte dabei ist", async () => {
+  // In TANSS ist die Zuordnung eine MENGE - `employeeWrite` schreibt sie als
+  // `companyAssignments`. Wer hier ein einzelnes Feld erwartete, hielte einen
+  // Ansprechpartner mit zwei Firmen bei einer davon faelschlich fuer fremd und liesse den
+  // Techniker einen Melder nicht waehlen, der voellig in Ordnung ist.
+  const client = fakeClient({
+    "PUT /api/v1/search": {
+      content: {
+        employees: [{ id: 1, name: "Doppelt", companyAssignments: [{ companyId: 9 }, { companyId: 3 }] }],
+      },
+      meta: {},
+    },
+  });
+  const ergebnis = await new TanssRepository({ client, config: {} })
+    .searchEmployees("mu", { companyId: 3 });
+
+  assert.deepEqual(ergebnis.items.map((r) => r.name), ["Doppelt"]);
+  assert.equal(ergebnis.unverified, false);
+});
+
+test("nennt TANSS keine Firma, wird die Zeile gezeigt und die Luecke benannt", async () => {
+  // Der dritte Ausgang, und der wichtigste: "nicht feststellbar" ist weder "gehoert dazu"
+  // noch "gehoert nicht dazu". Wer ihn als "gehoert nicht" behandelte, leerte die
+  // Trefferliste jeder Instanz, die das Feld nicht mitliefert - aus einer
+  // Schutzmassnahme wuerde ein Ausfall. Wer ihn stillschweigend durchwinkt, behauptet
+  // eine Pruefung, die nicht stattgefunden hat.
+  const client = fakeClient({
+    "PUT /api/v1/search": {
+      content: { employees: [{ id: 1, name: "Ohne Angabe" }] },
+      meta: {},
+    },
+  });
+  const ergebnis = await new TanssRepository({ client, config: {} })
+    .searchEmployees("mu", { companyId: 3 });
+
+  assert.deepEqual(ergebnis.items.map((r) => r.name), ["Ohne Angabe"]);
+  assert.equal(ergebnis.unverified, true, "die Luecke muss gemeldet werden");
+});
+
+test("ohne gefragte Firma wird nichts gefiltert und nichts behauptet", async () => {
+  // Die Suche ueber alle Kunden gibt es weiterhin - die Ticketsuche benutzt sie. Sie darf
+  // aber keine Firmenpruefung vortaeuschen, die niemand verlangt hat.
+  const client = fakeClient({
+    "PUT /api/v1/search": {
+      content: { employees: [{ id: 2, name: "Fremde", companyAssignments: [{ companyId: 9 }] }] },
+      meta: {},
+    },
+  });
+  const ergebnis = await new TanssRepository({ client, config: {} }).searchEmployees("mu");
+
+  assert.deepEqual(ergebnis.items.map((r) => r.name), ["Fremde"]);
+  assert.equal(ergebnis.unverified, false);
+});

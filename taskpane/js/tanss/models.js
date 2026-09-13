@@ -218,7 +218,50 @@ export function employeeRow(item) {
     name: str(item.name),
     email: str(item.emailAddress || item.email),
     departmentId: num(item.departmentId) || null,
+    companyIds: companyIdsOf(item),
   };
+}
+
+/**
+ * Zu welchen Firmen ein Mitarbeiter gehoert.
+ *
+ * Eine MENGE, kein Feld: In TANSS kann ein Ansprechpartner mehreren Firmen zugeordnet
+ * sein - `employeeWrite` schreibt die Zuordnung als `companyAssignments: [{companyId}]`.
+ * Wer hier ein einzelnes Feld erwartete, hielte einen Ansprechpartner mit zwei Firmen bei
+ * einer davon faelschlich fuer fremd.
+ *
+ * Gelesen werden alle drei Schreibweisen, die in der Antwort vorkommen koennen. Eine
+ * LEERE Menge heisst ausdruecklich "TANSS hat dazu nichts gesagt" und NICHT "gehoert zu
+ * keiner Firma" - der Unterschied entscheidet darueber, ob eine Pruefung moeglich ist.
+ */
+function companyIdsOf(item) {
+  const gefunden = new Set();
+  const merken = (wert) => {
+    const id = num(wert && typeof wert === "object" ? (wert.companyId ?? wert.id) : wert);
+    if (id) gefunden.add(id);
+  };
+  if (Array.isArray(item.companyAssignments)) item.companyAssignments.forEach(merken);
+  if (Array.isArray(item.companies)) item.companies.forEach(merken);
+  merken(item.companyId);
+  return [...gefunden];
+}
+
+/**
+ * Gehoert diese Zeile nachweislich NICHT zur Firma?
+ *
+ * Drei Ausgaenge, und der dritte ist der wichtigste:
+ *   - die Zeile nennt Firmen und die gesuchte ist dabei  -> gehoert dazu
+ *   - die Zeile nennt Firmen und die gesuchte fehlt      -> gehoert nachweislich nicht
+ *   - die Zeile nennt gar keine Firma                    -> nicht feststellbar
+ *
+ * Nur der mittlere Fall rechtfertigt es, jemanden wegzulassen. Den dritten als
+ * "gehoert nicht" zu behandeln, leerte die Trefferliste einer Instanz, die das Feld nicht
+ * mitliefert - und aus einer Schutzmassnahme wuerde ein Ausfall.
+ */
+export function belongsToCompany(row, companyId) {
+  const ids = Array.isArray(row && row.companyIds) ? row.companyIds : [];
+  if (ids.length === 0) return null;
+  return ids.includes(num(companyId));
 }
 
 /**

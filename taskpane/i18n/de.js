@@ -165,6 +165,12 @@ export const T = deepFreeze({
     companyUnknown: "nicht erkannt — bitte auswählen",
     companyChange: "Andere Firma wählen",
     remitter: "Melder",
+    companyFirst:
+      "Bitte zuerst die Firma wählen. Ohne sie ginge die Suche über alle Kunden, und der " +
+      "gewählte Ansprechpartner gehörte am Ende zu keinem davon.",
+    remitterUnverified:
+      "Zu mindestens einem Treffer nennt TANSS keine Firmenzuordnung. Ob er wirklich zu " +
+      "dieser Firma gehört, ist hier nicht feststellbar — bitte vor dem Anlegen prüfen.",
     remitterUnknown: "Der Absender ist in TANSS nicht bekannt.",
     remitterCreate: "Als Kontakt anlegen",
     remitterFirstName: "Vorname",

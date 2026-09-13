@@ -449,21 +449,40 @@ export async function render(ctx) {
   /**
    * Eine andere Firma uebernehmen.
    *
-   * Der Melder wird dabei verworfen: ein Ansprechpartner der alten Firma waere an der neuen
-   * entweder unzulaessig oder schlicht falsch, und TANSS bemerkte das erst beim Anlegen.
+   * Alles, was zur alten Firma gehoerte, muss mit ihr verschwinden - und zwar SICHTBAR,
+   * nicht nur im Zustand. Frueher wurde `state.remitter` verworfen, die Trefferliste der
+   * alten Firma aber stehen gelassen: Die Namen blieben anklickbar, und ein Klick hing
+   * eine fremde Person an den neuen Kunden. Genau dieser Weg ist im ersten echten Lauf
+   * beschritten worden.
+   *
+   * Dasselbe gilt fuer die aehnlichen Tickets: Sie stammen aus der Mailauswertung und
+   * gehoeren der alten Firma. Stehen zu lassen, was nicht mehr gilt, ist schlimmer als
+   * nichts anzuzeigen - es sieht wie eine Aussage ueber den neuen Kunden aus.
    */
   function pickCompany(company) {
     state.company = { id: company.id, name: company.name || String(company.id) };
     state.confidence = "none";
     state.remitter = null;
+    state.similar = [];
+    state.remitterUnverified = false;
     companySearchBox.hidden = true;
     companySearch.input.value = "";
     ui.clear(companyResults);
+    clearRemitterSearch();
     markDirty();
     renderCompany();
     renderRemitter();
+    renderNotices();
     renderActions();
     void loadOptions();
+  }
+
+  /** Die Meldersuche vollstaendig abraeumen - Eingabe, Treffer und aufgeklappter Bereich. */
+  function clearRemitterSearch() {
+    remitterExtraBox.hidden = true;
+    remitterExtraBox.dataset.mode = "";
+    remitterSearch.input.value = "";
+    ui.clear(remitterResults);
   }
 
   /* -------------------------------------------------------------------- Melder */
@@ -539,13 +558,32 @@ export async function render(ctx) {
       ui.clear(remitterResults);
       return;
     }
+
+    // Ohne gewaehlte Firma wird gar nicht erst gesucht. Eine firmenlose Suche liefe ueber
+    // ALLE Kunden, und jeder Treffer waere anklickbar - ein Melder, der nirgends
+    // hingehoert. Erst die Firma, dann die Person.
+    if (!state.company) {
+      ui.replace(remitterResults, ui.banner({ tone: "info", label: T.ticketNeu.companyFirst }));
+      return;
+    }
+
+    // Die Firma wird FESTGEHALTEN, nicht nachgeschlagen. Zwischen Absenden und Antwort
+    // kann der Techniker die Firma gewechselt haben; eine Antwort zur alten Firma darf in
+    // der neuen Maske weder erscheinen noch anklickbar sein. Ein `signal` faengt das
+    // nicht: Es faellt beim Seitenwechsel, nicht beim Firmenwechsel.
+    const gesuchteFirma = state.company.id;
+
     remitterSearch.setBusy(true);
     ui.replace(remitterResults, ui.loading(T.app.searching));
     const result = await api.get("api/search/employees", {
-      query: { q: term, companyId: state.company ? state.company.id : null },
+      query: { q: term, companyId: gesuchteFirma },
       signal: ctx.signal,
     });
     if (ctx.signal.aborted) return;
+    if (!state.company || state.company.id !== gesuchteFirma) {
+      ui.clear(remitterResults);
+      return;
+    }
     remitterSearch.setBusy(false);
     if (!result.ok) {
       ctx.showError(result.error);
@@ -553,9 +591,18 @@ export async function render(ctx) {
       return;
     }
     const items = Array.isArray(result.data.items) ? result.data.items : [];
+
+    // Die Trefferliste ist bereits im Repository nach der Firma gefiltert. Dass die
+    // Zuordnung nicht in jedem Fall FESTSTELLBAR ist, wird gesagt statt verschwiegen:
+    // Nennt TANSS an einer Zeile keine Firma, laesst sich nicht pruefen, ob sie passt.
+    state.remitterUnverified = result.data.unverified === true;
+
     ui.replace(
       remitterResults,
       result.data.tooMany ? ui.banner({ tone: "warn", label: T.app.tooMany }) : null,
+      state.remitterUnverified
+        ? ui.banner({ tone: "warn", label: T.ticketNeu.remitterUnverified })
+        : null,
       ui.list({
         items,
         renderItem: (employee) =>
@@ -563,6 +610,12 @@ export async function render(ctx) {
             title: employee.name || String(employee.id),
             subtitle: employee.email || "",
             onClick: () => {
+              // Zweite Sperre, unmittelbar am Klick. Die erste steht im Repository; diese
+              // hier faengt den Fall ab, dass eine Liste aus anderem Grund stehen blieb.
+              if (!state.company || state.company.id !== gesuchteFirma) {
+                clearRemitterSearch();
+                return;
+              }
               state.remitter = employee;
               remitterExtraBox.hidden = true;
               markDirty();

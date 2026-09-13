@@ -543,3 +543,38 @@ test("jede Skript-Herkunft der Richtlinie wird auch wirklich gebraucht", () => {
       `${herkunft} steht in der Richtlinie, kommt in der index.html aber nicht vor`);
   }
 });
+
+test("der Firmenwechsel raeumt alles ab, was zur alten Firma gehoerte", () => {
+  // Die Maske hat keinen Unit-Test - es gibt kein DOM. Die dauerhafte Sperre steht
+  // deshalb im Repository und ist dort geprueft. Dieser Waechter haelt nur die zweite
+  // Haelfte fest: dass beim Firmenwechsel auch das SICHTBARE verschwindet. Genau daran
+  // hing der gemeldete Fehler - `state.remitter` wurde verworfen, die Trefferliste der
+  // alten Firma blieb stehen und anklickbar.
+  const quelle = lies(join(TASKPANE, "js", "pages", "ticket-neu.js"));
+  const anfang = quelle.indexOf("function pickCompany(");
+  assert.ok(anfang > -1, "pickCompany gibt es nicht mehr");
+  const koerper = quelle.slice(anfang, quelle.indexOf("\n  }", anfang));
+
+  for (const pflicht of ["state.remitter = null", "state.similar = []", "clearRemitterSearch()"]) {
+    assert.ok(koerper.includes(pflicht), `pickCompany raeumt nicht ab: ${pflicht} fehlt`);
+  }
+});
+
+test("die Meldersuche prueft die Firma nach dem Warten erneut", () => {
+  // Eine noch laufende Suche liefert nach dem Firmenwechsel nach. Ihr Ergebnis gehoert
+  // zur ALTEN Firma und darf in der neuen Maske weder erscheinen noch anklickbar sein.
+  // Das `signal` faengt das nicht: Es faellt beim Seitenwechsel, nicht beim
+  // Firmenwechsel.
+  const quelle = lies(join(TASKPANE, "js", "pages", "ticket-neu.js"));
+  const anfang = quelle.indexOf("async function searchEmployees(");
+  assert.ok(anfang > -1, "searchEmployees gibt es nicht mehr");
+  const koerper = quelle.slice(anfang, quelle.indexOf("\n  }", anfang));
+
+  assert.ok(/const\s+\w+\s*=\s*state\.company\.id/.test(koerper),
+    "die Firma wird nicht festgehalten, sondern beim Auswerten neu nachgeschlagen");
+  assert.ok(koerper.includes("await"), "ohne Warten braeuchte es die Pruefung nicht");
+
+  const nachDemWarten = koerper.slice(koerper.indexOf("await"));
+  assert.ok(/state\.company\.id\s*!==/.test(nachDemWarten),
+    "nach dem Warten wird die Firma nicht gegen die festgehaltene geprueft");
+});

@@ -21,6 +21,7 @@ import { canonicalUid, formatSyncGroup, syncGroupMatches } from "./uid.js";
 import {
   appliedFields,
   assertWriteSafe,
+  belongsToCompany,
   companyConfig,
   companyRow,
   employeeConfig,
@@ -184,8 +185,28 @@ export class TanssRepository {
       }),
       { retry: true, wantMeta: true, signal },
     );
-    const items = ((content || {}).employees || []).map(employeeRow);
-    return { items, tooMany: tooMany(meta) };
+    const alle = ((content || {}).employees || []).map(employeeRow);
+
+    // Die Sperre steht HIER und nicht in der Maske. Das ist die einzige Tuer, durch die
+    // ein Ansprechpartner in einen Ticketentwurf gelangt; was hier nicht herauskommt,
+    // kann keine Oberflaeche anbieten - auch keine, die erst spaeter gebaut wird.
+    //
+    // Dass die Anfrage die Firma bereits mitgibt, genuegt nicht: Ob TANSS danach filtert,
+    // ist eine Zusage des Servers, und eine ungepruefte Zusage ist keine. Ein Ticket am
+    // falschen Kunden mit dem Namen einer fremden Person ist kein Schoenheitsfehler.
+    const gefragt = num(companyId) || null;
+    const items = gefragt
+      ? alle.filter((row) => belongsToCompany(row, gefragt) !== false)
+      : alle;
+
+    // Ehrlich ueber die Grenze der Pruefung: Nennt eine gelieferte Zeile ueberhaupt keine
+    // Firma, ist die Zugehoerigkeit nicht feststellbar. Dann wird sie gezeigt - sonst
+    // braeche die Suche auf einer Instanz, die das Feld nicht mitliefert - aber die Maske
+    // sagt es, statt eine Pruefung zu behaupten, die nicht stattgefunden hat.
+    const unverified = gefragt !== null
+      && items.some((row) => belongsToCompany(row, gefragt) === null);
+
+    return { items, tooMany: tooMany(meta), unverified };
   }
 
   /**
