@@ -49,10 +49,16 @@ Manifestdatei, die Sie einmalig in Ihr Microsoft 365 Admin Center laden — sieh
 
 ## Was das Add-in kann
 
+<img src="docs/ticket-erstellen.png" alt="Das Taskpane „Ticket erstellen“ neben einer geöffneten E-Mail in Outlook" width="380" align="right">
+
 Im Lesemodus einer E-Mail erscheint **eine** Schaltfläche „TANSS" mit einem
 Aufklappmenü; darin stehen *Ticket erstellen* und *An Ticket anhängen*. Im Termin des
 Organisators erscheint eine zweite Schaltfläche. Alle Einstiege öffnen dasselbe Taskpane
 auf einer eigenen Seite.
+
+Das Bild zeigt die Maske *Ticket erstellen*: Firma und Melder sind aus der
+Absenderadresse aufgelöst, Titel und Text stehen zugeklappt bereit, darunter die Felder,
+die TANSS führt. Das Taskpane übernimmt das Farbschema von Outlook — hier dunkel.
 
 **E-Mail an ein bestehendes Ticket hängen.** Der häufigste Fall: Acht Nachrichten
 gehören zu einem Vorgang, nicht zu acht Tickets. Das Taskpane sucht Tickets über Nummer
