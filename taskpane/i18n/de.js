@@ -189,7 +189,7 @@ export const T = deepFreeze({
     priority: "Priorität",
     priorityDefault: "— Vorgabe von TANSS —",
     assignee: "Zuweisung",
-    attachMail: "E-Mail am Ticket ablegen",
+    createWithoutMail: "Ticket ohne E-Mail anlegen",
     similarHeading: "Ähnliche Tickets",
     similarHint: "Vielleicht gehört diese Mail an ein bestehendes Ticket.",
     similarSwitch: "Stattdessen anhängen",
