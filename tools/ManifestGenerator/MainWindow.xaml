@@ -30,7 +30,7 @@
                 Padding="18,8" Margin="0,0,8,0" Click="AufPruefen"/>
         <TextBlock x:Name="Meldung" VerticalAlignment="Center" TextWrapping="Wrap"
                    Margin="0,0,16,0" Foreground="{StaticResource Gedaempft}"
-                   Text="Bitte die beiden oberen Felder ausfüllen."/>
+                   Text="Bitte die TANSS-Adresse eintragen. Die Ablage ist bereits vorbelegt."/>
       </DockPanel>
     </Border>
 
@@ -38,9 +38,11 @@
       <StackPanel>
 
         <TextBlock Style="{StaticResource Beschriftung}" Text="Ablage-Adresse des Add-ins"/>
-        <TextBox x:Name="AblageFeld" Text="https://"/>
+        <TextBox x:Name="AblageFeld" Text="https://pronet-systems.github.io/tanss-outlook-addin"/>
         <TextBlock Style="{StaticResource Hinweis}"
-                   Text="Wo die Dateien des Taskpanes liegen, ohne Schrägstrich am Ende. Diese Adresse muss vom Arbeitsplatz des Technikers erreichbar sein — nicht von Microsoft."/>
+                   Text="Vorbelegt mit der gepflegten Ablage von ProNet Systems. Dort liegt immer die aktuelle Fassung — Verbesserungen und Fehlerbehebungen erreichen Ihre Techniker ohne Ihr Zutun. Nur ändern, wenn Sie die Dateien bewusst selbst hosten; dann aktualisieren Sie sie auch selbst."/>
+        <TextBlock Style="{StaticResource Hinweis}"
+                   Text="Diese Adresse muss vom Arbeitsplatz des Technikers erreichbar sein — nicht von Microsoft. Ohne Schrägstrich am Ende. Es liegt dort nichts Kundenspezifisches: Welche TANSS-Instanz gilt, steht in Ihrem Manifest."/>
 
         <TextBlock Style="{StaticResource Beschriftung}" Text="TANSS-API"/>
         <TextBox x:Name="TanssFeld" Text="https://" TextChanged="AufTanssGeaendert"/>

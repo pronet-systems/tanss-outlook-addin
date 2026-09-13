@@ -5,10 +5,18 @@ aus einer E-Mail ein Ticket und pflegt zu einem Outlook-Termin den zugehörigen
 TANSS-Einsatz.
 
 Es besteht aus **statischen Dateien** — HTML, CSS und JavaScript. Kein Dienst, kein
-Port, kein systemd, keine Datenbank, kein Geheimnis im Ruhezustand. Sie legen ein
-Verzeichnis auf einem Webserver ab und laden einmalig eine Manifestdatei in Ihr
-Microsoft 365 Admin Center. Das Taskpane spricht danach direkt mit Ihrer TANSS-Instanz,
-aus dem Browser des Technikers heraus.
+Port, kein systemd, keine Datenbank, kein Geheimnis im Ruhezustand. Das Taskpane spricht
+direkt mit Ihrer TANSS-Instanz, aus dem Browser des Technikers heraus.
+
+**Sie müssen nichts ablegen.** Die Dateien werden unter
+
+```
+https://pronet-systems.github.io/tanss-outlook-addin
+```
+
+gepflegt und laufend aktualisiert. Ihre Installation besteht aus einer erzeugten
+Manifestdatei, die Sie einmalig in Ihr Microsoft 365 Admin Center laden — siehe
+[Installation](#installation).
 
 > **Status:** Vor dem ersten Produktivbetrieb. Für die Inbetriebnahme empfiehlt sich ein
 > Pilotbetrieb: das Add-in zunächst einer kleinen Gruppe zuweisen, einige Tage
@@ -23,10 +31,12 @@ aus dem Browser des Technikers heraus.
 - [Was dieses Werkzeug nicht tut](#was-dieses-werkzeug-nicht-tut)
 - [Voraussetzungen](#voraussetzungen)
 - [Installation](#installation)
-  - [1. Dateien ablegen](#1-dateien-ablegen)
-  - [2. Konfiguration eintragen](#2-konfiguration-eintragen)
-  - [3. Manifest erzeugen](#3-manifest-erzeugen)
-  - [4. In Outlook bereitstellen](#4-in-outlook-bereitstellen)
+  - [Die Ablage: bitte die gepflegte nutzen](#die-ablage-bitte-die-gepflegte-nutzen)
+  - [1. Entra-Anwendung registrieren](#1-entra-anwendung-registrieren)
+  - [2. Manifest erzeugen](#2-manifest-erzeugen)
+  - [3. Im Admin Center bereitstellen](#3-im-admin-center-bereitstellen)
+  - [4. Der erste Start beim Techniker](#4-der-erste-start-beim-techniker)
+  - [Eigene Ablage statt der gepflegten](#eigene-ablage-statt-der-gepflegten)
 - [Mehrere Kunden aus einer Ablage](#mehrere-kunden-aus-einer-ablage)
 - [Konfiguration im Einzelnen](#konfiguration-im-einzelnen)
 - [Die Originalnachricht](#die-originalnachricht)
@@ -136,14 +146,9 @@ eine zweite Oberflächensprache, ein Offline-Zwischenspeicher und eine Warteschl
 
 ## Voraussetzungen
 
-**Auf Serverseite** — nur für die Ablage der Dateien:
-
-- Ein Webserver, der statische Dateien über **HTTPS** ausliefert. Es genügt jeder:
-  Apache, nginx, ein Objektspeicher, GitHub Pages.
-- Ein Zertifikat, dem die **Arbeitsplätze** vertrauen.
-- Die Möglichkeit, für diesen Pfad **keine** `X-Frame-Options`-Kopfzeile zu senden.
-  Sendet der Server sie, bleibt das Taskpane in Outlook weiß — siehe
-  [Wenn etwas nicht geht](#wenn-etwas-nicht-geht).
+**Auf Serverseite: nichts.** Die Dateien liegen auf der gepflegten Ablage. Nur wer
+sie bewusst selbst hosten will, braucht einen Webserver — die Anforderungen stehen unter
+[Eigene Ablage statt der gepflegten](#eigene-ablage-statt-der-gepflegten).
 
 **Auf TANSS-Seite:**
 
@@ -158,6 +163,9 @@ eine zweite Oberflächensprache, ein Offline-Zwischenspeicher und eine Warteschl
 - Optional eine Entra-Registrierung, siehe [Die
   Originalnachricht](#die-originalnachricht).
 
+**Auf dem Rechner des Administrators:** Windows und .NET 10 für den Manifest-Generator.
+Er wird einmal ausgeführt und erzeugt eine Datei; danach wird er nicht mehr gebraucht.
+
 **Outlook:** klassisches Outlook für Windows, neues Outlook für Windows, Outlook im
 Browser und Outlook für Mac. Mindestens Mailbox-Anforderungspaket 1.6.
 
@@ -165,73 +173,101 @@ Browser und Outlook für Mac. Mindestens Mailbox-Anforderungspaket 1.6.
 
 ## Installation
 
-### 1. Dateien ablegen
+Drei Schritte, zusammen etwa eine halbe Stunde. Der erste ist optional.
 
-Der gesamte Inhalt von `taskpane/` kommt in ein Verzeichnis, das über HTTPS erreichbar
-ist. Nichts davon wird vorher gebaut oder übersetzt.
+| Schritt | Wo | Dauer | Wiederholt sich |
+|---|---|---|---|
+| 1. Entra-Anwendung registrieren | Microsoft Entra | ~10 min | nie |
+| 2. Manifest erzeugen | Generator auf Ihrem Rechner | ~2 min | nur bei Manifeständerungen |
+| 3. Add-in bereitstellen | Microsoft 365 Admin Center | ~5 min | nur bei Manifeständerungen |
+| 4. Erster Start | Arbeitsplatz eines Technikers | ~5 min | — |
 
-```bash
-rsync -a --delete taskpane/ /var/www/tanss-outlook-addin/
+Was in dieser Liste **fehlt**, ist der Schritt, den man erwarten würde: Dateien auf einen
+Webserver legen. Er entfällt.
+
+### Die Ablage: bitte die gepflegte nutzen
+
+```
+https://pronet-systems.github.io/tanss-outlook-addin
 ```
 
-Für einen eigenen vhost auf einem Apache liegt eine vollständig kommentierte Vorlage
-bereit: `deploy/apache-addon-vhost.conf.example`. Sie enthält die beiden Einstellungen,
-an denen es sonst scheitert — das Entfernen von `X-Frame-Options` und eine
-Inhaltsrichtlinie mit `frame-ancestors` für die Office-Herkünfte.
+Diese Adresse ist im Generator bereits vorbelegt, und Sie sollten sie stehen lassen. Der
+Grund ist nicht Bequemlichkeit, sondern **Wartung**: Dort liegt immer die aktuelle
+Fassung. Fehlerbehebungen und Verbesserungen erreichen Ihre Techniker, ohne dass Sie
+etwas tun — kein neues Manifest, kein Gang ins Admin Center, kein Ausrollen. Beim
+nächsten Öffnen des Panes gilt die neue Fassung.
 
-#### Oder über GitHub Pages
+Wer die Dateien selbst ablegt, schneidet sich von diesen Aktualisierungen ab und muss sie
+von Hand nachziehen. Das ist ein legitimer Wunsch, aber es ist einer mit laufenden
+Kosten.
 
-Dieses Repository bringt einen Ablauf mit, der das Taskpane nach jedem Push auf `main`
-veröffentlicht (`.github/workflows/pages.yml`). Einzurichten ist einmal:
+**Warum eine fremde Ablage unbedenklich ist.** Der Hoster spricht nie mit TANSS. Er
+liefert HTML, CSS und JavaScript aus und erfährt nicht einmal, wohin sich das Taskpane
+verbindet — die Verbindung geht vom Browser des Technikers direkt zu Ihrer Instanz.
+Welche Instanz das ist, steht in **Ihrem** Manifest, und das liegt in **Ihrem**
+Mandanten. Auf der Ablage liegt nichts Kundenspezifisches: Die `config.json` dort lässt
+`apiBase` leer.
 
-**Einstellungen → Pages → Source: GitHub Actions.**
+Daraus folgt unmittelbar: **Ihre TANSS-Instanz muss nicht öffentlich erreichbar sein.**
+Erreichbar sein muss sie für die Arbeitsplätze Ihrer Techniker, und die stehen in Ihrem
+Netz. Ein TANSS hinter der Firewall funktioniert mit dieser Ablage genauso wie eines mit
+öffentlicher Adresse.
 
-Danach liegt das Pane unter `https://<konto>.github.io/<repo>/`. Es wird nichts gebaut —
-veröffentlicht werden genau die Dateien aus `taskpane/`, und vorher laufen beide
-Testsuiten.
+> Zwei Eigenschaften der Ablage sind gemessen und sollten Sie kennen: Sie sendet **keine**
+> `X-Frame-Options` — das ist die Bedingung dafür, dass Outlook das Pane überhaupt
+> einrahmen darf. Sie kann dafür **keine** Kopfzeilen setzen, also auch kein
+> `frame-ancestors`; damit dürfte jede Seite das Pane einrahmen. Das schützt nicht vor
+> Tokendiebstahl — dafür bräuchte es einen Skriptfehler auf dem Ursprung selbst —,
+> sondern nur vor Klickfallen, und die Vorgänge hier sind alle mehrschrittig. Wer das
+> anders bewertet, nimmt eine eigene Ablage.
 
-Zwei Unterschiede zum eigenen vhost, beide gemessen und beide verkraftbar:
+### 1. Entra-Anwendung registrieren
 
-| | GitHub Pages | eigener vhost |
-|---|---|---|
-| `X-Frame-Options` | sendet keine ✓ | muss entfernt werden |
-| `frame-ancestors` | nicht setzbar — jede Seite dürfte das Pane einrahmen | setzbar |
-| `Cache-Control` | fest 10 Minuten | frei wählbar |
-| Aufwand | ein Push | DNS, Zertifikat, vhost |
+**Optional.** Ohne diesen Schritt läuft das Add-in vollständig, legt eine E-Mail aber als
+**Rekonstruktion** statt als Original ab: Inhalt und Anhänge sind da, aber
+`Received`-Kette, `DKIM-Signature` und `References` fehlen. Für Beweiszwecke ist das
+schwächer. Mehr dazu unter [Die Originalnachricht](#die-originalnachricht).
 
-Der Verlust von `frame-ancestors` schützt nicht vor Tokendiebstahl — dafür bräuchte es
-einen Skriptfehler auf dem Ursprung selbst — sondern nur vor Klickfallen, und die
-Vorgänge hier sind alle mehrschrittig. Wer das anders bewertet, nimmt den eigenen vhost;
-die Vorlage bleibt dafür im Repository.
+Die Registrierung braucht **kein Geheimnis** — kein Client-Secret, kein Zertifikat, nichts
+was ablaufen könnte.
 
-Auf einer so geteilten Ablage liegt **keine Kundenadresse**: Die Veröffentlichung legt
-eine `config.json` daneben, die `apiBase` leer lässt. Welche Instanz gilt, entscheidet
-dann das Manifest jedes Kunden — siehe [Mehrere Kunden aus einer
-Ablage](#mehrere-kunden-aus-einer-ablage).
+1. **Entra-Portal öffnen:** [entra.microsoft.com](https://entra.microsoft.com). Alternativ
+   über das Microsoft 365 Admin Center → *Alle anzeigen* → *Identität*.
+2. Links **Anwendungen** → **App-Registrierungen** → oben **Neue Registrierung**.
+3. **Name** frei wählen, zum Beispiel `TANSS Outlook Add-in`. Er ist nur für Sie.
+4. **Unterstützte Kontotypen:** *Nur Konten in diesem Organisationsverzeichnis*
+   (Einzelmandant). Das Add-in wird ausschließlich in Ihrem Mandanten benutzt.
+5. **Umleitungs-URI** hier noch **leer lassen** — das Feld bietet die richtige Plattform
+   an dieser Stelle nicht an. **Registrieren**.
+6. Auf der Übersichtsseite steht jetzt die **Anwendungs-ID (Client)**. Diese GUID
+   brauchen Sie in Schritt 2 — kopieren Sie sie.
+7. Links **Authentifizierung** → **Plattform hinzufügen** → **Einseitige Anwendung
+   (SPA)**. Als Umleitungs-URI eintragen:
 
-### 2. Konfiguration eintragen
+   ```
+   brk-multihub://pronet-systems.github.io
+   ```
 
-```bash
-cp /var/www/tanss-outlook-addin/config.example.json \
-   /var/www/tanss-outlook-addin/config.json
-```
+   > **Nur die Herkunft, ohne Pfad.** Nicht die volle Adresse des Panes. Bei einer eigenen
+   > Ablage steht hier deren Hostname. Das Feld nimmt dieses Schema an, obwohl es kein
+   > `https` ist — das ist beabsichtigt und gehört zur verschachtelten Anmeldung.
+   >
+   > Diese Zeile ist die häufigste Fehlerquelle der ganzen Einrichtung, und sie lässt sich
+   > **von außen nicht prüfen**: Microsoft beanstandet eine fehlende Rückadresse erst nach
+   > der Anmeldung. Der Generator nennt deshalb den genauen Wert zum Nachsehen, statt ein
+   > „in Ordnung" zu behaupten, das nichts belegt.
 
-Dann `config.json` bearbeiten. Zwei Angaben genügen für den Anfang:
+8. Links **API-Berechtigungen** → **Berechtigung hinzufügen** → **Microsoft Graph** →
+   **Delegierte Berechtigungen** → `Mail.Read` auswählen → **Berechtigungen hinzufügen**.
+9. Je nach Mandanteinstellung ist danach **Administratorzustimmung erteilen** nötig.
+   Steht in der Spalte *Status* ein gelbes Warnzeichen, ist sie nötig.
 
-```json
-{
-  "apiBase": "https://tanss.ihre-firma.de/backend",
-  "frontendBase": "https://tanss.ihre-firma.de"
-}
-```
+Es wird **kein Clientgeheimnis** angelegt und **keine Anwendungsberechtigung** vergeben.
+Das Add-in handelt immer als der angemeldete Techniker, nie als Anwendung.
 
-Die Datei darf fehlen, darf Unsinn enthalten und darf unbekannte Schlüssel tragen — das
-Taskpane öffnet in jedem Fall und sagt auf der Diagnoseseite, was es davon übernommen
-hat. Ein Tippfehler legt keine neue Einstellung an, sondern wird verworfen und benannt.
+### 2. Manifest erzeugen
 
-### 3. Manifest erzeugen
-
-Das Manifest sagt Outlook, wo die Dateien liegen und gegen welche TANSS-Instanz
+Das Manifest sagt Outlook, wo das Taskpane liegt und gegen welche TANSS-Instanz
 gearbeitet wird. Es wird **erzeugt**, nicht von Hand gepflegt.
 
 ```bash
@@ -246,14 +282,22 @@ dotnet publish -c Release -r win-x64 --self-contained true \
   -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true
 ```
 
-Im Fenster sind zwei Felder Pflicht: die Ablage-Adresse der Dateien und die TANSS-API.
-Die **Add-in-Kennung** darunter wird aus der TANSS-Adresse berechnet, nicht gewürfelt —
-dieselbe Instanz ergibt immer dieselbe Kennung, auch in zwei Jahren und auf einem
-anderen Rechner. Das ist wichtig: Für Outlook ist ein Add-in mit anderer Kennung ein
-**anderes** Add-in, und die alte Installation bliebe bei jedem Benutzer daneben stehen.
+Auszufüllen ist im Grunde **ein** Feld:
 
-Die Schaltfläche **Prüfen** misst die Angaben gegen die Wirklichkeit, lesend und ohne
-Anmeldung:
+| Feld | Was hinein gehört |
+|---|---|
+| **Ablage-Adresse** | Bereits vorbelegt mit `https://pronet-systems.github.io/tanss-outlook-addin`. Stehen lassen. |
+| **TANSS-API** | Die API-Adresse Ihrer Instanz, meist auf `/backend` endend — zum Beispiel `https://tanss.ihre-firma.de/backend`. |
+| **Add-in-Kennung** | Wird berechnet, nicht eingegeben. |
+| *Weitere Angaben* → **Entra-Anwendungs-Id** | Die GUID aus Schritt 1. Leer lassen, wenn Sie Schritt 1 übersprungen haben. |
+| *Weitere Angaben* → **Mandant** | Ihre Microsoft-365-Domäne, z. B. `ihre-firma.de`. Steht **nicht** im Manifest und ändert am Add-in nichts — der Prüflauf braucht sie, um die Entra-Anwendung überhaupt nachschlagen zu können. |
+
+Die **Add-in-Kennung** wird aus der TANSS-Adresse berechnet, nicht gewürfelt: Dieselbe
+Instanz ergibt immer dieselbe Kennung, auch in zwei Jahren und auf einem anderen Rechner.
+Das ist wichtig, denn für Outlook ist ein Add-in mit anderer Kennung ein **anderes**
+Add-in — die alte Installation bliebe bei jedem Benutzer daneben stehen.
+
+Die Schaltfläche **Prüfen** misst die Angaben gegen die Wirklichkeit, ohne Anmeldung:
 
 | Bereich | Geprüft wird |
 |---|---|
@@ -265,27 +309,97 @@ Anmeldung:
 
 Ein dritter Ausgang neben „in Ordnung" und „beanstandet" ist **„unklar"**: Eine Prüfung,
 die keine Antwort bekommen hat, gilt nicht als bestanden. Die Rückadresse der
-Entra-Registrierung steht dauerhaft auf „unklar" — der Anmeldedienst beanstandet eine
-fehlende Rückadresse gegenüber einem Unangemeldeten nicht, sondern erst nach der
-Anmeldung. Statt eines „OK", das nichts belegt, nennt der Prüflauf dort den genauen
-Wert zum Nachsehen.
+Entra-Registrierung steht dauerhaft auf „unklar", siehe Schritt 1.
 
 Alle Prüfungen kommen ohne Zugangsdaten aus und verändern nichts. Eine ist nicht rein
 lesend: Die Prüfung der Entra-Anwendung fordert einen Anmeldecode an, um zu erfahren, ob
 es die Anwendung gibt. Der Code wird nicht benutzt und verfällt; einlösen könnte ihn
 ohnehin nur, wer gültige Zugangsdaten hat.
 
-### 4. In Outlook bereitstellen
+Zum Schluss **Manifest erzeugen…** und die Datei speichern.
 
-Microsoft 365 Admin Center → **Einstellungen** → **Integrierte Apps** → **Add-Ins** →
-**Add-In bereitstellen** → **Benutzerdefiniertes Add-In** → **Manifestdatei hochladen**.
+### 3. Im Admin Center bereitstellen
 
-Die Datei wird **hochgeladen, nicht verlinkt**. Ihr Webserver muss für Microsoft also
-nie erreichbar sein — nur für die Arbeitsplätze Ihrer Techniker.
+Microsoft 365 Admin Center → **Einstellungen** → **Integrierte Apps** → oben
+**App hochladen** → **Office-Add-In** → **Manifestdatei (.xml) von diesem Gerät
+hochladen**.
 
-Danach den Benutzern oder einer Gruppe zuweisen. Bis die Schaltflächen im Menüband
-erscheinen, können 24 bis 72 Stunden vergehen; ein Neustart von Outlook beschleunigt es
-oft.
+> Der Punkt heißt **nicht** „Add-Ins" — der führt zu den älteren Exchange-Add-ins. Wenn
+> Sie in *Integrierte Apps* keinen Weg zum Hochladen finden, fehlt Ihnen die Rolle: Nötig
+> ist **Globaler Administrator** oder **Exchange-Administrator**.
+
+Die Datei wird **hochgeladen, nicht verlinkt**. Ihr Webserver muss für Microsoft also nie
+erreichbar sein — und die gepflegte Ablage wird von Microsoft ebenfalls nie abgerufen.
+
+Danach die **Zuweisung**: Nur ich / bestimmte Benutzer oder Gruppen / gesamte
+Organisation. Für die Inbetriebnahme empfiehlt sich eine kleine Gruppe.
+
+Bis die Schaltflächen im Menüband erscheinen, können **24 bis 72 Stunden** vergehen. Ein
+Neustart von Outlook beschleunigt es oft.
+
+### 4. Der erste Start beim Techniker
+
+1. Outlook öffnen, eine **E-Mail auswählen** (nicht nur die Leseansicht — das Add-in
+   braucht ein geöffnetes Element).
+2. Im Menüband erscheint **eine** Schaltfläche „TANSS" mit Aufklappmenü: *Ticket
+   erstellen* und *An Ticket anhängen*.
+3. Beim ersten Öffnen fragt das Taskpane nach den **TANSS-Zugangsdaten** des Technikers.
+   Die Anmeldeseite zeigt dabei an, **gegen welche Instanz** sie sich anmeldet — ein Blick
+   darauf gehört zur Sorgfalt, denn eine untergeschobene Adresse wäre eine Anmeldemaske,
+   die das Kennwort woanders hinschickt.
+4. Das Token gilt vier Stunden und wird selbsttätig erneuert. Eine neue Anmeldung steht
+   erst an, wenn auch das Erneuerungstoken abgelaufen ist.
+
+Bleibt etwas stehen, führt der Knopf **Diagnose** im Kopf des Panes zu einer Seite, die
+zeigt, was der laufende Client tatsächlich meldet — sie ist absichtlich **ohne Anmeldung**
+erreichbar. Ihr Inhalt lässt sich als Text kopieren; das ist die nützlichste Rückmeldung
+bei einer Störung.
+
+### Eigene Ablage statt der gepflegten
+
+Nur nötig, wenn Sie die Dateien aus eigenem Entschluss selbst halten wollen. **Der Preis:
+Aktualisierungen sind dann Ihre Aufgabe.**
+
+Anforderungen an den Webserver:
+
+- Statische Dateien über **HTTPS**, mit einem Zertifikat, dem die **Arbeitsplätze**
+  vertrauen. Öffentlich erreichbar muss er nicht sein.
+- **Keine** `X-Frame-Options`-Kopfzeile auf diesem Pfad. Sendet der Server sie, bleibt das
+  Taskpane in Outlook weiß, ohne jede Fehlermeldung.
+
+```bash
+rsync -a --delete taskpane/ /var/www/tanss-outlook-addin/
+```
+
+Für einen eigenen vhost auf einem Apache liegt eine vollständig kommentierte Vorlage
+bereit: `deploy/apache-addon-vhost.conf.example`. Sie enthält die beiden Einstellungen, an
+denen es sonst scheitert — das Entfernen von `X-Frame-Options` und eine Inhaltsrichtlinie
+mit `frame-ancestors` für die Office-Herkünfte.
+
+Danach die Konfiguration:
+
+```bash
+cp config.example.json config.json
+```
+
+```json
+{
+  "apiBase": "https://tanss.ihre-firma.de/backend",
+  "frontendBase": "https://tanss.ihre-firma.de"
+}
+```
+
+Die Datei darf fehlen, darf Unsinn enthalten und darf unbekannte Schlüssel tragen — das
+Taskpane öffnet in jedem Fall und sagt auf der Diagnoseseite, was es davon übernommen hat.
+Ein Tippfehler legt keine neue Einstellung an, sondern wird verworfen und benannt.
+
+Im Generator tragen Sie dann Ihre eigene Adresse in das Feld **Ablage-Adresse** ein, und
+in Schritt 1 lautet die Rückadresse `brk-multihub://<ihr-hostname>`.
+
+> Wer dieses Repository selbst auf GitHub Pages veröffentlichen will: Ein Ablauf dafür
+> liegt bei (`.github/workflows/pages.yml`); einzurichten ist einmal **Einstellungen →
+> Pages → Source: GitHub Actions**. Veröffentlicht werden genau die Dateien aus
+> `taskpane/`, und vorher laufen beide Testsuiten.
 
 ---
 
@@ -303,7 +417,7 @@ Welche Instanz gilt, entscheidet sich in drei Stufen:
 
 1. **Die Adresse im Manifest.** Sie stammt vom Administrator des Mandanten und ist damit
    verwaltet, nicht geraten.
-2. **`apiBase` aus der `config.json`**, für eine Installation mit eigenem Hoster.
+2. **`apiBase` aus der `config.json`**, für eine Installation mit eigener Ablage.
 3. **Eine einmal selbst eingetragene Adresse**, falls weder das eine noch das andere
    vorliegt.
 
@@ -370,8 +484,16 @@ genauen Wert, den Sie unter *Authentifizierung* nachsehen sollten.
 
 ## Aktualisieren
 
-**Die Dateien** tauschen Sie jederzeit aus; beim nächsten Öffnen des Panes gilt die neue
-Fassung. Ein Manifest muss dafür nicht angefasst werden.
+**Die Dateien: gar nichts.** Wer die gepflegte Ablage nutzt, bekommt jede neue Fassung
+selbsttätig — beim nächsten Öffnen des Panes gilt sie. Kein Manifest, kein Admin Center,
+kein Ausrollen. Das ist der eigentliche Grund, diese Ablage zu nehmen.
+
+Einen Vorbehalt gibt es: Der Arbeitsplatz hält eine geladene Fassung **zehn Minuten**
+vor. Wer eine Korrektur sofort sehen will, schließt Outlook und leert den
+Zwischenspeicher — siehe [Wenn etwas nicht geht](#wenn-etwas-nicht-geht).
+
+**Bei eigener Ablage** tauschen Sie die Dateien selbst aus; auch dann gilt beim nächsten
+Öffnen die neue Fassung, ein Manifest muss dafür nicht angefasst werden.
 
 ```bash
 rsync -a --delete taskpane/ /var/www/tanss-outlook-addin/   # config.json ausnehmen!
@@ -389,9 +511,30 @@ im Admin Center über **Update** einspielen.
 
 ## Wenn etwas nicht geht
 
-**Das Taskpane bleibt weiß.** Fast immer sendet der Webserver `X-Frame-Options`. Outlook
-zeigt das Pane in einem Rahmen fremder Herkunft an; mit dieser Kopfzeile lädt es nicht,
-und es erscheint keine Fehlermeldung. Prüfen:
+**Das Pane bleibt bei „Outlook wird abgewartet …" stehen.** Die Office-Bibliothek ist
+geladen, meldet sich aber nicht zurück. Das Pane sagt dann selbst, woran es liegt: Unter
+der Fehlermeldung stehen drei Messwerte, darunter *Von der Inhaltsrichtlinie blockiert*.
+Steht dort eine Zeile, hat die Inhaltsrichtlinie einen Ladevorgang abgewiesen, den
+office.js braucht — bei einer eigenen Ablage mit eigener Richtlinie der häufigste Fall.
+Die mitgelieferte Richtlinie lässt neben dem Office-CDN auch `ajax.aspnetcdn.com` zu:
+Von dort lädt office.js für den Windows-Host eine weitere Bibliothek nach, und ohne sie
+kommt der Start nicht zum Ende.
+
+> Der Telemetrierahmen von office.js
+> (`telemetryservice.firstpartyapps.oaspapps.com`) wird dort **absichtlich** abgewiesen.
+> Er erscheint in dieser Liste und ist kein Befund.
+
+**Eine Korrektur kommt nicht an.** Der Arbeitsplatz hält eine geladene Fassung zehn
+Minuten vor. Sofort wirksam wird sie so: Outlook schließen, dann den Zwischenspeicher
+leeren und Outlook neu starten.
+
+```powershell
+Remove-Item "$env:LOCALAPPDATA\Microsoft\Office\16.0\Wef\webview2" -Recurse -Force
+```
+
+**Das Taskpane bleibt weiß.** Bei eigener Ablage sendet fast immer der Webserver
+`X-Frame-Options`. Outlook zeigt das Pane in einem Rahmen fremder Herkunft an; mit dieser
+Kopfzeile lädt es nicht, und es erscheint keine Fehlermeldung. Prüfen:
 
 ```bash
 curl -sI https://<ihre-ablage>/ | grep -i x-frame-options
@@ -407,6 +550,10 @@ Ursprung ab. Beides misst der Generator unter **Prüfen** nach.
 **Die Schaltflächen erscheinen nicht.** Nach der Bereitstellung können 24 bis 72 Stunden
 vergehen. Outlook neu starten. Erscheinen sie dann immer noch nicht, ist die Zuweisung
 im Admin Center zu prüfen.
+
+**Die Schaltfläche erscheint, ist aber ausgegraut.** Es ist kein Element ausgewählt. Das
+Add-in braucht eine geöffnete oder in der Liste markierte E-Mail beziehungsweise einen
+Termin, dessen Organisator Sie sind.
 
 **Die Schaltflächen erscheinen, das Pane lädt nicht.** Der Arbeitsplatz erreicht die
 Ablage nicht — typisch außerhalb des Firmennetzes ohne VPN, und auf Mobilgeräten.
