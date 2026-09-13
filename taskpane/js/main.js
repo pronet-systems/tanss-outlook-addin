@@ -109,8 +109,16 @@ function identitySubtitle() {
 /**
  * Endzustand: eine Meldung, die erklaert, was nicht geht, und - wenn moeglich - eine
  * Handlung. Kein Ladekreis, kein leeres Pane.
+ *
+ * `facts` traegt Messwerte, die zur Meldung gehoeren. Sie stehen hier und nicht nur auf
+ * der Diagnoseseite, weil die Seitenmodule ueber einen dynamischen Import kommen und
+ * deshalb aus dem Zwischenspeicher stammen koennen, waehrend diese Datei frisch geladen
+ * wurde. Wer eine Stoerung untersucht, soll nicht davon abhaengen, welches Modul gerade
+ * aktuell ist.
+ *
+ * @param {Array<[string, string]>} facts
  */
-function fatal(message, actionLabel = "", onAction = null) {
+function fatal(message, actionLabel = "", onAction = null, facts = []) {
   // Ein Endzustand darf keinen Fortschrittstext stehen lassen. Sonst steht ueber der
   // Fehlermeldung weiter "Outlook wird abgewartet …" und behauptet, es laufe noch etwas -
   // genau die Verwechslung, die den ersten Lauf in echtem Outlook unlesbar gemacht hat.
@@ -127,6 +135,7 @@ function fatal(message, actionLabel = "", onAction = null) {
     app.view,
     ui.el("div", { class: "fatal" }, [
       ui.el("p", { class: "fatal-text", text: message }),
+      facts.length > 0 ? ui.kv(facts) : null,
       actionLabel && onAction ? ui.button({ label: actionLabel, onClick: onAction }) : null,
       ui.button({ label: T.nav.diagnose, variant: "ghost", onClick: () => navigate("#/diagnose") }),
     ]),
@@ -347,11 +356,26 @@ async function start() {
     );
     // Zwei Faelle, zwei Saetze. Fehlt office.js, laeuft die Seite ausserhalb von Outlook.
     // Ist die Bibliothek da und antwortet trotzdem nicht, ist die Einbettung gestoert -
-    // eine ganz andere Suche, und die Diagnoseseite zeigt dafuer die Ausgangswerte.
+    // eine ganz andere Suche.
+    //
+    // Darunter stehen die drei Messwerte, die diese Suche entscheiden: Fehlt die Kennung
+    // des Hosts in der Adresse, weiss office.js selbst nicht, welchen Wirt es vor sich hat
+    // und kann sich gar nicht melden. Steht dagegen etwas in der dritten Zeile, hat die
+    // Inhaltsrichtlinie einen Ladevorgang abgewiesen, den office.js braucht. Beides fuehrt
+    // zum selben Stillstand und hat nichts miteinander zu tun.
+    const blockiert = boot.blocked();
     fatal(
       office.hasOfficeApi() ? T.host.officeSilent : T.host.notOutlook,
       T.app.retry,
       () => globalThis.location.reload(),
+      [
+        [T.diagnose.bootOffice, office.hasOfficeApi() ? T.app.yes : T.app.no],
+        [T.diagnose.bootHostInfo, boot.hostInfoLine()],
+        [
+          T.diagnose.bootCsp,
+          blockiert.length === 0 ? T.diagnose.bootCspNone : blockiert.join(" · "),
+        ],
+      ],
     );
     return;
   }

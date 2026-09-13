@@ -264,6 +264,7 @@ export const T = deepFreeze({
     bootReady: "Antwort von Outlook",
     bootHostInfo: "Kennung des Hosts (_host_Info)",
     bootHostInfoMissing: "nicht übergeben",
+    bootHostInfoInHash: "im Anker statt in der Adresse — office.js liest dort nicht",
     bootCsp: "Von der Inhaltsrichtlinie blockiert",
     bootCspNone: "nichts",
     configuration: "Konfiguration",

@@ -76,7 +76,7 @@ export async function render(ctx) {
   const bootPairs = [
     [T.diagnose.bootOffice, show(boot.hadOfficeLibrary())],
     ...boot.entries(),
-    [T.diagnose.bootHostInfo, boot.hostInfoParam() || T.diagnose.bootHostInfoMissing],
+    [T.diagnose.bootHostInfo, boot.hostInfoLine()],
     [
       T.diagnose.bootCsp,
       bootBlocked.length === 0 ? T.diagnose.bootCspNone : bootBlocked.join(SEPARATOR),

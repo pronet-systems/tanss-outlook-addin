@@ -13,11 +13,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { entries, hostInfoParam, mark, sinceStart } from "../../taskpane/js/boot.js";
+import { T } from "../../taskpane/i18n/de.js";
+import {
+  entries,
+  hostInfoInHash,
+  hostInfoLine,
+  hostInfoParam,
+  mark,
+  sinceStart,
+} from "../../taskpane/js/boot.js";
 
 /** Setzt die Adresse, die das Modul liest. Es fragt sie bei jedem Aufruf neu ab. */
-function adresse(search) {
-  globalThis.location = { search };
+function adresse(search, hash = "") {
+  globalThis.location = { search, hash };
 }
 
 test("ohne Parameter meldet das Protokoll einen leeren Wert, nicht undefined", () => {
@@ -71,4 +79,28 @@ test("die Dauer seit dem Start ist ganzzahlig und laeuft nicht rueckwaerts", () 
   assert.equal(Number.isInteger(a), true);
   assert.ok(a >= 0);
   assert.ok(b >= a);
+});
+
+test("liegt die Kennung im Anker, wird genau das gesagt", () => {
+  // Die Adressen im Manifest enden auf `#/ticket/neu`. Haengt der Wirt seine Kennung
+  // hinten an die Zeichenkette, landet sie hinter dem Doppelkreuz - dort liest office.js
+  // nicht, und der Start kommt nie zum Ende. Der Fall unterscheidet diese Ursache von
+  // "gar nicht uebergeben"; beide sehen im Pane sonst gleich aus.
+  adresse("?tanss=https%3A%2F%2Ftanss.example.org", "#/ticket/neu&_host_Info=Outlook%24Win32");
+
+  assert.equal(hostInfoParam(), "", "im Abfrageteil steht nichts - genau das sieht office.js");
+  assert.equal(hostInfoInHash(), "Outlook$Win32");
+  assert.equal(hostInfoLine(), `Outlook$Win32 \u00b7 ${T.diagnose.bootHostInfoInHash}`);
+});
+
+test("steht die Kennung richtig, nennt die Zeile nur den Wert", () => {
+  adresse("?_host_Info=Outlook%24Win32%2416.02", "#/ticket/neu");
+  assert.equal(hostInfoLine(), "Outlook$Win32$16.02");
+});
+
+test("fehlt sie ganz, sagt die Zeile das ausdruecklich", () => {
+  // Kein leeres Feld: Eine Luecke liest sich wie ein Versehen der Oberflaeche und nicht
+  // wie ein Befund.
+  adresse("?tanss=https%3A%2F%2Ftanss.example.org", "#/diagnose");
+  assert.equal(hostInfoLine(), T.diagnose.bootHostInfoMissing);
 });

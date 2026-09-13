@@ -22,6 +22,8 @@
  * Das Protokoll wandert ueber "Als Text kopieren" in fremde Haende.
  */
 
+import { T } from "../i18n/de.js";
+
 /** Deckel. Ein Verstoss wiederholt sich in einer Schleife sonst bis zum Speicherende. */
 const MAX_VIOLATIONS = 12;
 
@@ -87,16 +89,48 @@ if (typeof document !== "undefined" && typeof document.addEventListener === "fun
  * laesst sich hier ablesen, statt es zu vermuten.
  */
 export function hostInfoParam() {
-  const search = globalThis.location ? String(globalThis.location.search || "") : "";
-  if (!search) return "";
-  const parts = search.split("_host_Info=");
-  if (parts.length < 2) return "";
-  const value = parts[1].split(/[&#]/)[0];
+  return extract(globalThis.location ? globalThis.location.search : "");
+}
+
+/**
+ * Dieselbe Kennung, aber im ANKER gesucht - dort, wo office.js sie nie findet.
+ *
+ * Die Adressen im Manifest enden auf `#/ticket/neu`. Haengt der Wirt seine Kennung
+ * schlicht hinten an die Zeichenkette, landet sie hinter dem Doppelkreuz und damit im
+ * Anker. Dann steht sie zwar da, aber an der falschen Stelle, und der Start kommt nie zum
+ * Ende. Ob es so kommt, entscheidet der Wirt; deshalb wird es nachgesehen und nicht
+ * angenommen.
+ */
+export function hostInfoInHash() {
+  return extract(globalThis.location ? globalThis.location.hash : "");
+}
+
+/** Sucht `_host_Info` in einem Adressteil, nach denselben Regeln wie office.js. */
+function extract(part) {
+  const text = String(part || "");
+  if (!text) return "";
+  const pieces = text.split("_host_Info=");
+  if (pieces.length < 2) return "";
+  const value = pieces[1].split(/[&#]/)[0];
   try {
     return decodeURIComponent(value);
   } catch {
     return value;
   }
+}
+
+/**
+ * Die Zeile, die auf der Diagnoseseite UND unter einer Fehlermeldung steht.
+ *
+ * Sie wird an einer einzigen Stelle gebaut, damit Bildschirmfoto und kopierter Text nie
+ * auseinanderlaufen - und damit der Fundort nicht an einem der beiden Orte verschwindet.
+ */
+export function hostInfoLine() {
+  const inSearch = hostInfoParam();
+  if (inSearch) return inSearch;
+  const inHash = hostInfoInHash();
+  if (inHash) return `${inHash} · ${T.diagnose.bootHostInfoInHash}`;
+  return T.diagnose.bootHostInfoMissing;
 }
 
 /** Einen Messwert festhalten. Spaetere Aufrufe mit demselben Namen ueberschreiben. */
