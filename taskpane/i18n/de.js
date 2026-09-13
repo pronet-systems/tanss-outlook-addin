@@ -267,6 +267,7 @@ export const T = deepFreeze({
     bootHostInfoInHash: "im Anker statt in der Adresse — office.js liest dort nicht",
     bootCsp: "Von der Inhaltsrichtlinie blockiert",
     bootCspNone: "nichts",
+    bootCspLate: "erst spät zugehört — der Anfang fehlt",
     configuration: "Konfiguration",
     configApi: "TANSS-Adresse",
     configInstance: "Kennzeichen der Installation",

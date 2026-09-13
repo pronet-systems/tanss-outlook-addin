@@ -474,3 +474,30 @@ test("keine Seite ruft eine Route auf, die der Verteiler nicht kennt", () => {
   // Ein Waechter ohne Gegenstand sieht auch dann nichts, wenn er kaputt ist.
   assert.ok(geprueft > 0, "kein einziger Routenaufruf gefunden - der Fall prueft nichts");
 });
+
+test("der fruehe Zuhoerer steht vor office.js und ist kein Modul", () => {
+  // Beides ist Bedingung, nicht Geschmack. Ein Modul liefe zurueckgestellt - also erst
+  // nach office.js -, und genau die Meldungen, um die es geht, fallen waehrend dessen
+  // Start. Steht die Zeile hinter office.js oder traegt sie type="module", misst das Pane
+  // eine Leere und meldet sie als Entwarnung.
+  const seite = lies(join(TASKPANE, "index.html"));
+
+  const zuhoerer = seite.indexOf('src="js/boot-early.js"');
+  const office = seite.indexOf("appsforoffice.microsoft.com/lib/1/hosted/office.js");
+  assert.ok(zuhoerer > -1, "js/boot-early.js wird in der index.html nicht geladen");
+  assert.ok(office > -1, "office.js wird in der index.html nicht geladen");
+  assert.ok(zuhoerer < office, "der fruehe Zuhoerer steht hinter office.js");
+
+  const zeile = seite.slice(seite.lastIndexOf("<script", zuhoerer), zuhoerer);
+  assert.ok(!zeile.includes("type=\"module\""), "der fruehe Zuhoerer ist als Modul eingebunden");
+});
+
+test("der fruehe Zuhoerer bleibt klein und ohne Abhaengigkeit", () => {
+  // Was hier scheitert, scheitert vor jeder Fehlerbehandlung: Zu diesem Zeitpunkt gibt es
+  // weder eine Oberflaeche noch ein Auffangnetz. Die Datei darf deshalb nicht wachsen und
+  // nichts nachladen.
+  const quelle = lies(join(TASKPANE, "js", "boot-early.js"));
+  assert.ok(quelle.length < 2500, `boot-early.js ist ${quelle.length} Zeichen gross`);
+  assert.ok(!/\bimport\b|\brequire\(|\bfetch\(/.test(quelle),
+    "boot-early.js laedt etwas nach - das darf es nicht");
+});

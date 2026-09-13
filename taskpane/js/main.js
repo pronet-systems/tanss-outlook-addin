@@ -142,6 +142,17 @@ function fatal(message, actionLabel = "", onAction = null, facts = []) {
   );
 }
 
+/**
+ * Die Zeile ueber abgewiesene Ladevorgaenge.
+ *
+ * "nichts" darf nur dastehen, wenn auch wirklich zugehoert wurde. Fiel der fruehe Zuhoerer
+ * aus, ist die leere Liste keine Entwarnung, sondern eine Luecke - und die wird benannt.
+ */
+function cspZeile(liste) {
+  if (liste.length > 0) return liste.join(" \u00b7 ");
+  return boot.hadEarlyListener() ? T.diagnose.bootCspNone : T.diagnose.bootCspLate;
+}
+
 /* ---------------------------------------------------------------------- Router */
 
 /**
@@ -371,10 +382,7 @@ async function start() {
       [
         [T.diagnose.bootOffice, office.hasOfficeApi() ? T.app.yes : T.app.no],
         [T.diagnose.bootHostInfo, boot.hostInfoLine()],
-        [
-          T.diagnose.bootCsp,
-          blockiert.length === 0 ? T.diagnose.bootCspNone : blockiert.join(" · "),
-        ],
+        [T.diagnose.bootCsp, cspZeile(blockiert)],
       ],
     );
     return;

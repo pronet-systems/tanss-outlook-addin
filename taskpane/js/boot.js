@@ -30,8 +30,18 @@ const MAX_VIOLATIONS = 12;
 /** @type {Array<[string, string]>} Geordnete Eintraege: Bezeichnung, Wert. */
 const marks = [];
 
+/**
+ * Was `js/boot-early.js` bereits gesammelt hat.
+ *
+ * Jenes klassische Skript haengt VOR office.js und faengt damit auch die Verstoesse, die
+ * waehrend dessen Start fallen. Fehlt es - weil jemand die Zeile aus der `index.html`
+ * entfernt hat -, wird hier notduerftig selbst zugehoert; dann fehlt aber der Anfang, und
+ * die Diagnoseseite sagt das, statt eine leere Liste als Entwarnung auszugeben.
+ */
+const early = globalThis.__TANSS_START__ || null;
+
 /** @type {string[]} Blockierte Ladevorgaenge, in der Reihenfolge ihres Auftretens. */
-const violations = [];
+const violations = early ? early.csp : [];
 
 /**
  * War die Office-Bibliothek da, als das erste eigene Modul lief?
@@ -49,7 +59,7 @@ const officePresent = typeof globalThis.Office === "object" && globalThis.Office
  * `performance.now()`, nicht `Date.now()`: Eine Zeitumstellung oder ein Abgleich der
  * Systemuhr mitten im Start ergaebe sonst negative Dauern.
  */
-const t0 = now();
+const t0 = early ? early.t0 : now();
 
 function now() {
   const p = globalThis.performance;
@@ -68,7 +78,7 @@ export function sinceStart() {
  * Beides zusammen benennt die Zeile in `index.html`, die fehlt - mehr braucht niemand, und
  * der Rest des Ereignisses (Zeilennummer, Beispieltext) wuerde nur die Liste fluten.
  */
-if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+if (!early && typeof document !== "undefined" && typeof document.addEventListener === "function") {
   document.addEventListener("securitypolicyviolation", (event) => {
     if (violations.length >= MAX_VIOLATIONS) return;
     const directive = String(event.effectiveDirective || event.violatedDirective || "?");
@@ -149,6 +159,17 @@ export function hadOfficeLibrary() {
 /** Die blockierten Ladevorgaenge, als Kopie. */
 export function blocked() {
   return violations.slice();
+}
+
+/**
+ * Ob der fruehe Zuhoerer lief.
+ *
+ * Ist er ausgefallen, ist eine leere Liste KEINE Entwarnung: Die Meldungen aus dem Start
+ * von office.js waren dann schon durch, bevor ueberhaupt zugehoert wurde. Das gehoert
+ * gesagt - sonst liest sich ein Loch wie ein Befund.
+ */
+export function hadEarlyListener() {
+  return early !== null;
 }
 
 /** Alle festgehaltenen Messwerte, als Kopie. */

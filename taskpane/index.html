@@ -53,6 +53,11 @@
 <link rel="stylesheet" href="app.css">
 <link rel="icon" href="assets/icon-32.png" type="image/png">
 
+<!-- MUSS vor office.js stehen und MUSS ein klassisches Skript bleiben. Es haengt den
+     Zuhoerer fuer abgewiesene Ladevorgaenge an. Ein Modul liefe zurueckgestellt, also erst
+     nach office.js - und die Meldungen, um die es geht, fallen waehrend dessen Start. -->
+<script src="js/boot-early.js"></script>
+
 <!-- office.js kommt vom Microsoft-CDN, weil der Host die dort ausgelieferte Fassung
      erwartet; eine mitgelieferte Kopie wuerde bei jedem Office-Update veralten. -->
 <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
