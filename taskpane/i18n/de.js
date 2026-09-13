@@ -195,6 +195,10 @@ export const T = deepFreeze({
     submit: "Ticket anlegen",
     submitting: "Ticket wird angelegt …",
     successHeading: "Ticket {id} angelegt.",
+    successMailByCheck:
+      "Die Nachricht hängt am Ticket — nachgesehen. TANSS hat den Upload zwar bestätigt, " +
+      "aber ohne Ergebniszeile geantwortet; deshalb wurde am Ticket geprüft statt " +
+      "geraten. Bitte nicht erneut anhängen, sie wäre sonst zweimal da.",
     successMailAttached: "Die E-Mail hängt am Ticket.",
     successMailSkipped: "Die E-Mail wurde auf Wunsch nicht abgelegt.",
     successMailFailed: "Das Ticket wurde angelegt, die E-Mail konnte aber nicht abgelegt werden.",

@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { TanssRepository, isFreshEmlDocument } from "../../taskpane/js/tanss/repository.js";
+import { TanssRepository, isFreshEmlDocument, shapeOf } from "../../taskpane/js/tanss/repository.js";
 
 /** Ein Client, der Aufrufe aufzeichnet und vorbereitete Antworten liefert. */
 function fakeClient(routes) {
@@ -272,14 +272,90 @@ test("eine zu grosse Datei wird nicht als Erfolg gemeldet", async () => {
   assert.equal(result.verified, false);
 });
 
-test("ein Upload ohne Ergebnisliste gilt als Fehlschlag", async () => {
+test("ohne Ergebnisliste UND ohne Nachricht am Ticket ist der Fehlschlag belegt", async () => {
+  // Frueher wurde hier geworfen, WEIL die Liste fehlte. Das war ein Schluss aus dem
+  // Schweigen. Jetzt wird nachgesehen, und erst der Befund am Ticket entscheidet - dann
+  // ist der Fehlschlag belegt statt vermutet, und die Wiederholung ist gefahrlos.
   await assert.rejects(
     () => repo({
       "GET /api/v1/tickets/history/5": { content: { mails: [] } },
       "POST /api/v1/tickets/5/upload": { content: [] },
     }).uploadEml(5, { filename: "a.eml", blob: new Blob(["x"]), description: "d" }),
-    (error) => error.code === "INTERNAL",
+    (error) => error.code === "INTERNAL" && /haengt die Nachricht nicht/.test(error.message),
   );
+});
+
+test("ohne Ergebnisliste, aber die Nachricht haengt am Ticket: Erfolg aus der Gegenprobe", async () => {
+  // Der Fall, der im ersten echten Lauf eingetreten ist: TANSS bestaetigte den Upload
+  // ohne Ergebniszeile, und die Mail hing trotzdem am Ticket. Frueher meldete das Pane
+  // hier einen Fehlschlag und bot die Wiederholung an - ein Klick darauf haette die
+  // Nachricht ein ZWEITES Mal angehaengt.
+  let runde = 0;
+  const client = {
+    calls: [],
+    get: async (pfad) => {
+      if (pfad === "/api/v1/tickets/history/5") {
+        runde += 1;
+        return runde === 1 ? { mails: [] } : { mails: [{ id: 77 }] };
+      }
+      return [];
+    },
+    put: async () => ({}),
+    post: async () => ({}),
+    call: async () => [],
+  };
+  const ergebnis = await new TanssRepository({ client, config: {} })
+    .uploadEml(5, { filename: "a.eml", blob: new Blob(["x"]), description: "d" });
+
+  assert.equal(ergebnis.status, "OK");
+  assert.equal(ergebnis.confirmedBy, "check", "die Herkunft der Bestaetigung muss mitkommen");
+  assert.equal(ergebnis.tanssMailId, 77);
+  assert.equal(ergebnis.verified, true);
+});
+
+test("ohne Ergebnisliste und ohne Gegenprobe wird nichts behauptet", async () => {
+  // Kommt auch die Gegenprobe nicht durch, ist NICHTS feststellbar. Dann darf weder ein
+  // Erfolg noch ein belegter Fehlschlag gemeldet werden - die Meldung schickt den
+  // Techniker nach TANSS, bevor er es noch einmal versucht.
+  const client = {
+    calls: [],
+    get: async () => { throw new Error("weg"); },
+    put: async () => ({}),
+    post: async () => ({}),
+    call: async () => [],
+  };
+  await assert.rejects(
+    () => new TanssRepository({ client, config: {} })
+      .uploadEml(5, { filename: "a.eml", blob: new Blob(["x"]), description: "d" }),
+    (error) => error.code === "INTERNAL" && /nachsehen/.test(error.message),
+  );
+});
+
+test("ein einzelnes Ergebnisobjekt zaehlt wie eine Liste mit einem Eintrag", async () => {
+  // Dieselbe Nachsicht, die `createContact` an derselben Schnittstelle schon kennt: als
+  // Liste beschrieben, in der Praxis auch ein einzelnes Objekt.
+  const client = {
+    calls: [],
+    get: async () => ({ mails: [] }),
+    put: async () => ({}),
+    post: async () => ({}),
+    call: async () => ({ status: "TOO_BIG", name: "a.eml", size: 9 }),
+  };
+  const ergebnis = await new TanssRepository({ client, config: {} })
+    .uploadEml(5, { filename: "a.eml", blob: new Blob(["x"]), description: "d" });
+
+  assert.equal(ergebnis.status, "TOO_BIG");
+});
+
+test("die Meldung nennt die Gestalt der Antwort, nie ihren Inhalt", async () => {
+  // "ohne Ergebnisliste" liess niemanden wissen, was TANSS statt dessen geschickt hat.
+  // Genannt werden Typ und Feldnamen - Feldnamen beschreiben die Schnittstelle, Werte
+  // beschrieben den Vorgang, und der geht niemanden ausser dem Techniker etwas an.
+  assert.equal(shapeOf(null), "leere Antwort");
+  assert.equal(shapeOf([]), "leere Liste (0 Einträge)");
+  assert.equal(shapeOf("nichts"), "string statt Liste");
+  assert.equal(shapeOf({}), "leeres Objekt statt Liste");
+  assert.equal(shapeOf({ ok: true, hinweis: "x" }), "Objekt statt Liste, Felder: ok, hinweis");
 });
 
 test("die neue Nachricht wird ueber die Differenz erkannt, nicht ueber den Betreff", async () => {

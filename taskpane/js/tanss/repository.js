@@ -479,14 +479,21 @@ export class TanssRepository {
     const content = await this.client.call(
       "POST", `/api/v1/tickets/${ticketId}/upload`, { body: form, signal });
 
-    const results = Array.isArray(content) ? content.filter((item) => item) : [];
+    // Dieselbe Nachsicht wie in `createContact`: Die Antwort ist als Liste beschrieben,
+    // in der Praxis kommt an dieser Schnittstelle auch ein einzelnes Objekt vor. Das ist
+    // kein Zugestaendnis ins Blaue, sondern derselbe Fall an derselben Stelle.
+    const results = Array.isArray(content)
+      ? content.filter((item) => item)
+      : (content && typeof content === "object" && "status" in content ? [content] : []);
+
+    // Steht kein Ergebnis da, wird NICHT geraten, sondern nachgesehen. Genau diese Frage
+    // ist offen - ob die Nachricht am Ticket haengt -, und genau dafuer gibt es die
+    // Gegenprobe. Sie vorher zu ueberspringen war die falsche Reihenfolge: Sie meldete
+    // einen Fehlschlag und bot die Wiederholung an, die eine angekommene Nachricht ein
+    // zweites Mal angehaengt haette.
     if (results.length === 0) {
-      throw new ApiError(
-        "INTERNAL",
-        "TANSS hat den Upload ohne Ergebnisliste bestaetigt. Ob die Nachricht am Ticket "
-        + "haengt, ist damit offen - der Vorgang wird als fehlgeschlagen gemeldet, "
-        + "statt einen Erfolg zu behaupten.",
-      );
+      return this._judgeByCheck(ticketId,
+        { filename, blob, before, startedAt, shape: shapeOf(content), signal });
     }
 
     const result = results[0];
@@ -504,6 +511,7 @@ export class TanssRepository {
       { knownMailIds: before, since: startedAt, signal });
     return {
       status: "OK",
+      confirmedBy: "response",
       fileName: str(result.name) || filename,
       sizeBytes: num(result.size) || blob.size,
       tanssMailId: check.tanssMailId,
@@ -511,6 +519,60 @@ export class TanssRepository {
       documentFileName: check.documentFileName,
       verified: check.checkedHistory || check.checkedDocuments,
     };
+  }
+
+  /**
+   * Kein Ergebnis in der Antwort - also am Ticket nachsehen.
+   *
+   * Drei Ausgaenge, und sie sind wirklich verschieden:
+   *
+   *   1. Die Nachricht haengt am Ticket. Dann ist sie angekommen, und das wird gemeldet -
+   *      mit dem Vermerk, woher die Bestaetigung stammt. Ein Erfolg aus der Gegenprobe
+   *      ist ein Erfolg, aber er ist nicht derselbe wie eine Zusage des Servers, und die
+   *      Oberflaeche sagt das.
+   *   2. Die Gegenprobe lief und fand nichts. Dann ist der Fehlschlag BELEGT, nicht nur
+   *      vermutet - und die Wiederholung ist gefahrlos.
+   *   3. Die Gegenprobe kam selbst nicht durch. Dann ist nichts feststellbar, und genau
+   *      das wird gesagt.
+   *
+   * Die Form der Antwort wird in allen Faellen genannt - nur ihre GESTALT, nie ihr
+   * Inhalt. Beim naechsten Mal steht damit in der Meldung, was TANSS wirklich geschickt
+   * hat, statt "ohne Ergebnisliste".
+   */
+  async _judgeByCheck(ticketId, { filename, blob, before, startedAt, shape, signal }) {
+    const check = await this.verifyUpload(ticketId,
+      { knownMailIds: before, since: startedAt, signal });
+
+    if (check.tanssMailId !== null || check.storedAsDocument) {
+      return {
+        status: "OK",
+        confirmedBy: "check",
+        responseShape: shape,
+        fileName: filename,
+        sizeBytes: blob.size,
+        tanssMailId: check.tanssMailId,
+        storedAsDocument: check.storedAsDocument,
+        documentFileName: check.documentFileName,
+        verified: true,
+      };
+    }
+
+    if (check.checkedHistory) {
+      throw new ApiError(
+        "INTERNAL",
+        "TANSS hat den Upload bestaetigt, aber keine Ergebniszeile geliefert "
+        + `(${shape}) - und am Ticket haengt die Nachricht nicht. Sie ist nicht `
+        + "angekommen; ein zweiter Versuch ist gefahrlos.",
+      );
+    }
+
+    throw new ApiError(
+      "INTERNAL",
+      "TANSS hat den Upload bestaetigt, aber keine Ergebniszeile geliefert "
+      + `(${shape}). Die Gegenprobe am Ticket kam ebenfalls nicht durch, also laesst `
+      + "sich nicht sagen, ob die Nachricht haengt - bitte in TANSS nachsehen, bevor "
+      + "der Vorgang wiederholt wird.",
+    );
   }
 
   /**
@@ -837,6 +899,25 @@ export class TanssRepository {
     const { applied, ignored } = appliedFields(body, content);
     return { supportId: created.id, applied, ignored, syncGroup: created.syncGroup };
   }
+}
+
+/**
+ * Die GESTALT einer Antwort in einem kurzen Satz - nie ihr Inhalt.
+ *
+ * Sie wandert in eine Fehlermeldung, die der Techniker liest und weitergibt. Deshalb nur
+ * Typ, Laenge und Feldnamen: Feldnamen beschreiben die Schnittstelle, Werte beschrieben
+ * den Vorgang - und der geht niemanden ausser dem Techniker etwas an.
+ *
+ * Ohne diese Angabe stand in der Meldung "ohne Ergebnisliste", und niemand konnte sagen,
+ * was TANSS statt dessen geschickt hatte. Beim naechsten Mal steht es da.
+ */
+export function shapeOf(content) {
+  if (content === null || content === undefined) return "leere Antwort";
+  if (Array.isArray(content)) return `leere Liste (${content.length} Einträge)`;
+  if (typeof content !== "object") return `${typeof content} statt Liste`;
+  const felder = Object.keys(content).slice(0, 8);
+  if (felder.length === 0) return "leeres Objekt statt Liste";
+  return `Objekt statt Liste, Felder: ${felder.join(", ")}`;
 }
 
 /**

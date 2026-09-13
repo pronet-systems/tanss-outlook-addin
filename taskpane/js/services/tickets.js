@@ -306,6 +306,10 @@ async function attach(ticketId, form, signal) {
     tanssMailId: outcome.tanssMailId,
     storedAsDocument: false,
     bytes: outcome.sizeBytes,
+    // Woher die Bestaetigung stammt, wird durchgereicht und nicht unterwegs verschluckt:
+    // Ein Erfolg, den die Gegenprobe am Ticket festgestellt hat, ist ein Erfolg - aber
+    // nicht derselbe wie eine Zusage des Servers, und die Erfolgsseite sagt das.
+    confirmedBy: outcome.confirmedBy || "response",
   };
 }
 

@@ -995,7 +995,17 @@ export async function render(ctx) {
     ];
 
     if (mail.status === "attached") {
-      children.push(ui.banner({ tone: "ok", label: T.ticketNeu.successMailAttached }));
+      // Woher die Bestaetigung stammt, ist kein Detail: Bei einer Antwort ohne
+      // Ergebniszeile hat die Gegenprobe am Ticket entschieden. Der Techniker soll das
+      // wissen - und vor allem, dass er NICHT nachhelfen muss. Genau dort lag die Gefahr:
+      // Frueher stand hier ein Fehlschlag mit dem Angebot, es noch einmal zu versuchen,
+      // und eine angekommene Nachricht waere ein zweites Mal angehaengt worden.
+      children.push(ui.banner({
+        tone: "ok",
+        label: mail.confirmedBy === "check"
+          ? T.ticketNeu.successMailByCheck
+          : T.ticketNeu.successMailAttached,
+      }));
     } else if (mail.status === "skipped") {
       children.push(ui.banner({ tone: "info", label: T.ticketNeu.successMailSkipped }));
     } else {
