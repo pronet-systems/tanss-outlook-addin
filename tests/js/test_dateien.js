@@ -23,9 +23,17 @@ const WURZEL = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const TASKPANE = join(WURZEL, "taskpane");
 const VENDOR = join(TASKPANE, "vendor");
 
-/** Die drei Herkuenfte, mit denen das Pane sprechen darf - und keine vierte. */
+/**
+ * Die vier Herkuenfte, mit denen das Pane sprechen darf - und keine fuenfte.
+ *
+ * Die vierte ist nicht gewaehlt, sondern gemessen: office.js laedt fuer den Win32-Host
+ * MicrosoftAjax von ajax.aspnetcdn.com nach. Fehlt der Eintrag, wird die Datei abgewiesen,
+ * die Initialisierung kommt nicht zum Ende und `Office.onReady` meldet sich nie - ohne
+ * jede Fehlermeldung im Pane. Genau daran hat die erste Auslieferung gehangen.
+ */
 const ERLAUBT = new Set([
   "https://appsforoffice.microsoft.com",
+  "https://ajax.aspnetcdn.com",
   "https://login.microsoftonline.com",
   "https://graph.microsoft.com",
 ]);
@@ -266,7 +274,10 @@ test("die Seite traegt kein BOM", () => {
 test("die Richtlinie im meta-Element nennt genau die noetigen Herkuenfte", () => {
   const direktiven = cspDirektiven(metaRichtlinie());
   assert.deepEqual(direktiven["default-src"], ["'self'"]);
-  assert.deepEqual(direktiven["script-src"], ["'self'", "https://appsforoffice.microsoft.com"]);
+  // ajax.aspnetcdn.com steht hier, weil office.js von dort MicrosoftAjax nachlaedt. Ohne
+  // den Eintrag bleibt das Pane stumm stehen - der Fall ist gemessen, nicht angenommen.
+  assert.deepEqual(direktiven["script-src"],
+    ["'self'", "https://appsforoffice.microsoft.com", "https://ajax.aspnetcdn.com"]);
   // `https:` steht fuer die TANSS-Instanz, deren Adresse erst in der config.json der
   // jeweiligen Installation steht. Verschaerft wird die Direktive vom Ablageort.
   assert.deepEqual(direktiven["connect-src"],
@@ -500,4 +511,35 @@ test("der fruehe Zuhoerer bleibt klein und ohne Abhaengigkeit", () => {
   assert.ok(quelle.length < 2500, `boot-early.js ist ${quelle.length} Zeichen gross`);
   assert.ok(!/\bimport\b|\brequire\(|\bfetch\(/.test(quelle),
     "boot-early.js laedt etwas nach - das darf es nicht");
+});
+
+test("meta-Element und Ablagevorlage nennen dieselben Skript-Herkuenfte", () => {
+  // Die Liste steht an zwei Orten, und beide muessen gelten: Das meta-Element traegt sie
+  // auf jedem Hoster, die Kopfzeile zusaetzlich dort, wo man Kopfzeilen setzen kann. Je
+  // Direktive gewinnt die STRENGERE - eine Herkunft, die nur in einer der beiden steht,
+  // ist damit wirkungslos, und zwar leise. Genau so ist ajax.aspnetcdn.com beim ersten
+  // Mal ueberhaupt erst aufgefallen: als stummer Stillstand ohne Fehlermeldung.
+  const ausMeta = cspDirektiven(metaRichtlinie())["script-src"];
+
+  const vorlage = lies(join(WURZEL, "deploy", "apache-addon-vhost.conf.example"));
+  const zeile = vorlage.slice(vorlage.indexOf("Content-Security-Policy")).split("\n")[0];
+  const ausKopfzeile = cspDirektiven(zeile.split('"')[1])["script-src"];
+
+  assert.deepEqual(ausKopfzeile, ausMeta,
+    "die beiden Fassungen der Skript-Direktive sind auseinandergelaufen");
+});
+
+test("jede Skript-Herkunft der Richtlinie wird auch wirklich gebraucht", () => {
+  // Eine Herkunft, die niemand mehr laedt, ist eine offene Tuer ohne Zweck. Sie muss
+  // entweder in der index.html vorkommen oder im Quelltext begruendet sein - sonst ist
+  // sie ein Rest, den jemand einzutragen vergessen hat auszutragen.
+  const seite = lies(join(TASKPANE, "index.html"));
+  const herkuenfte = cspDirektiven(metaRichtlinie())["script-src"]
+    .filter((eintrag) => eintrag.startsWith("https://"));
+
+  for (const herkunft of herkuenfte) {
+    const host = herkunft.replace("https://", "");
+    assert.ok(seite.includes(host),
+      `${herkunft} steht in der Richtlinie, kommt in der index.html aber nicht vor`);
+  }
 });

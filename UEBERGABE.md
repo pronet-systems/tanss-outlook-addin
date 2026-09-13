@@ -119,6 +119,41 @@ Nichts davon ist Annahme.
 | GitHub Pages | Sendet **kein** `X-Frame-Options`; setzt dafür gar keine Kopfzeilen, also kein `frame-ancestors`, und `Cache-Control` fest auf 10 Minuten |
 | Parameter und Fragment in der Taskpane-Adresse | Überstehen beide; Office hängt sein `_host_Info` davor an und ersetzt nichts |
 | Die Wächter über die Dateien | Schlagen nachweislich an: drei absichtlich eingebaute Verstöße, drei Fehlschläge |
+| `_host_Info` bei Adresse mit Parametern **und** Anker | Kommt im Abfrageteil an: `Outlook$Win32$16.02$de-DE$$$$0` — der Anker schadet nicht |
+| Skript-Ursprünge, die office.js wirklich braucht | Zwei: der eigene **und** `ajax.aspnetcdn.com` — siehe unten |
+
+### Der Stillstand beim ersten Lauf in echtem Outlook
+
+Das Pane lud sichtbar, `Office.onReady()` meldete sich aber nie, und alle Host-Felder
+blieben leer. Ursache, vom Pane selbst gemeldet:
+
+```
+script-src-elem → https://ajax.aspnetcdn.com/ajax/3.5/MicrosoftAjax.js
+```
+
+office.js lädt für den Win32-Host **MicrosoftAjax von einem zweiten
+Microsoft-Auslieferungsnetz** nach. Ob es das tut, hängt an einer Umschaltung im Dienst
+(`EnableOfficeJsCDNForMsAjaxJs`): Ist sie an, kommt dieselbe Datei vom Ursprung von
+office.js und der zweite Eintrag fällt niemandem auf. Ist sie aus, wird die Datei von
+einer strengen Inhaltsrichtlinie abgewiesen — und dann kommt die Initialisierung nicht zum
+Ende. Das Pane bleibt **stumm** stehen: Der Browser meldet den Verstoß nur seiner eigenen
+Konsole, und die gibt es im eingebetteten Browser von Outlook nicht.
+
+Die restliche Ladekette wurde nachgesehen und liegt vollständig auf dem Ursprung von
+office.js: `o15apptofilemappingtable.js`, `outlook-15.02.js`, `ariatelemetry/`. Nicht
+eingetragen ist `alcdn.msauth.net` — er steht in der Vertrauensliste von office.js, gehört
+aber zum alten Office-Anmeldeweg, den dieses Pane nicht benutzt.
+
+Der Telemetrierahmen von office.js
+(`telemetryservice.firstpartyapps.oaspapps.com`) wird von `frame-src` **absichtlich**
+abgewiesen. Er wird drei Sekunden nach dem Start nachgeladen, hält nichts auf und trägt
+nichts bei. In der Diagnose taucht er als blockiert auf und ist dort kein Befund.
+
+**Lehre für jede weitere Arbeit:** Eine strenge Inhaltsrichtlinie und ein Add-in-Host, der
+Bibliotheken von wechselnden Ursprüngen nachlädt, vertragen sich nur, wenn das Pane selbst
+meldet, was abgewiesen wurde. Genau dafür gibt es `taskpane/js/boot-early.js` — ein
+klassisches Skript **vor** office.js, weil ein Modul zurückgestellt liefe und die
+Meldungen verpasste. Zwei Wächter halten es an seinem Platz.
 
 ---
 
@@ -136,6 +171,12 @@ Exchange-Dienst registriert.
 **Folge:** Die Registrierung läuft einmalig über das Admin Center und ist durch keine
 lokale Maßnahme zu ersetzen.
 
+**Der Anker in der Taskpane-Adresse ist nicht die Ursache von Startproblemen.** Die
+Vermutung lag nahe: Die Manifestadressen enden auf `#/ticket/neu`, und office.js liest
+`_host_Info` ausschließlich aus `window.location.search`. Gemessen ist sie trotzdem
+falsch — die Kennung kam vollständig im Abfrageteil an. Eine laufende Fremdinstallation
+bestätigt es: Sie arbeitet ebenfalls mit Hash-Routen.
+
 **Das Unternehmenszeichen taugt nicht als Menübandsymbol.** Bei 16 px zerfällt die
 Punktmarke zu Sprenkeln, bei 32 px ist sie grenzwertig. Nachgemessen mit gerenderten
 Probestufen. Im Menüband steht deshalb das „T", das die Funktion benennt; das Zeichen
@@ -145,11 +186,11 @@ steht im Kopf des Panes.
 
 ## Offene Punkte
 
-1. **Der Lauf in echtem Outlook steht aus.** Keine Maske ist je dort geöffnet worden;
-   geprüft ist alles gegen Attrappen. Das ist der nächste Schritt und der wichtigste.
-2. **Kein Git-Remote.** Ohne eines lässt sich nichts veröffentlichen. Danach einmalig
-   *Einstellungen → Pages → Source: GitHub Actions*.
-3. **Drei unbelegte Annahmen über TANSS** — sie betreffen den Server, nicht den
+1. **Der Lauf in echtem Outlook ist begonnen, nicht abgeschlossen.** Das Menüband
+   erscheint, das Pane lädt, der Start kommt durch (siehe den Befund zu MicrosoftAjax
+   oben). Was noch nie dort gelaufen ist: Anmeldung an TANSS, Ticketanlage, Mailablage,
+   Terminpflege. Alles darunter ist gegen Attrappen geprüft und sonst nirgends.
+2. **Drei unbelegte Annahmen über TANSS** — sie betreffen den Server, nicht den
    Zuschnitt, und fallen alle sichtbar aus statt still:
    - ob `PUT /api/v1/supports/list` das Feld `fetchMetaInfos` annimmt und die
      Zusatzinformationen zurückgibt. Bleiben sie aus, beruht die Terminzuordnung allein
@@ -164,14 +205,14 @@ steht im Kopf des Panes.
    Ein Python-Werkzeug, das diese drei gegen eine laufende Instanz gemessen hat, ist mit
    der Dienstfassung entfallen. Der **natürliche Ort dafür ist der Prüflauf im
    Generator** — er spricht ohnehin schon mit TANSS.
-4. **Der Generator hat keine eigenen Tests.** Seine Prüffunktion läuft bei jeder
+3. **Der Generator hat keine eigenen Tests.** Seine Prüffunktion läuft bei jeder
    Erzeugung und verweigert ein schadhaftes Manifest, aber sie ist selbst ungeprüft. Ein
    kleines Testprojekt daneben wäre die naheliegende Ergänzung.
-5. **Auf GitHub Pages fehlt `frame-ancestors`.** Der Hoster setzt keine Kopfzeilen. Das
+4. **Auf GitHub Pages fehlt `frame-ancestors`.** Der Hoster setzt keine Kopfzeilen. Das
    schützt nicht vor Tokendiebstahl — dafür bräuchte es einen Skriptfehler auf dem
    Ursprung selbst —, sondern nur vor Klickfallen. Wer das anders bewertet, nimmt die
    vhost-Vorlage unter `deploy/`.
-6. **Ob eine Entra-Registrierung eingerichtet wird.** Ohne sie wird die Nachricht
+5. **Ob eine Entra-Registrierung eingerichtet wird.** Ohne sie wird die Nachricht
    rekonstruiert statt kopiert; Empfangskette und Signaturköpfe fehlen dann. Die
    Registrierung braucht kein Geheimnis, und der Generator prüft sie mit.
 

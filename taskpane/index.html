@@ -9,11 +9,31 @@
   Inhaltsrichtlinie. Sie zaehlt genau die Herkuenfte auf, die gebraucht werden:
 
     script-src   'self'                          - das Taskpane und die mitgelieferte MSAL-Datei
-                 appsforoffice.microsoft.com     - office.js, der einzige Fremdskript-Ursprung
+                 appsforoffice.microsoft.com     - office.js und alles, was es nachlaedt
+                 ajax.aspnetcdn.com              - MicrosoftAjax, siehe unten
     connect-src  https:                          - die TANSS-Instanz, siehe unten
                  login.microsoftonline.com       - MSAL waehrend einer Rueckfrage
                  graph.microsoft.com             - die geoeffnete Nachricht im Original
     frame-src    login.microsoftonline.com       - stiller Anmelderahmen von MSAL
+
+  Warum ajax.aspnetcdn.com dabeisteht: office.js laedt fuer den Win32-Host die Bibliothek
+  MicrosoftAjax von einem ZWEITEN Microsoft-Auslieferungsnetz nach. Ob es das tut, haengt
+  an einer Umschaltung im Dienst; ist sie an, kommt dieselbe Datei vom Ursprung von
+  office.js, und der zweite Eintrag faellt niemandem auf. Ist sie aus, wird die Datei
+  abgewiesen - und dann kommt die Initialisierung nicht zum Ende: `Office.onReady` meldet
+  sich nie, das Pane bleibt stehen, und der Browser sagt es nur seiner eigenen Konsole,
+  die es in Outlook nicht gibt. Genau dieser Fall ist hier eingetreten und vom
+  Startprotokoll des Panes gemeldet worden.
+
+  Die uebrige Ladekette liegt auf dem Ursprung von office.js und braucht keinen weiteren
+  Eintrag; nachgesehen wurde sie trotzdem. Nicht eingetragen ist alcdn.msauth.net: Der
+  Ursprung steht in der Vertrauensliste von office.js, gehoert aber zum alten
+  Office-Anmeldeweg, den dieses Pane nicht benutzt.
+
+  Der Telemetrierahmen von office.js (telemetryservice.firstpartyapps.oaspapps.com) wird
+  von frame-src ABSICHTLICH abgewiesen. Er wird drei Sekunden nach dem Start nachgeladen,
+  haelt nichts auf und traegt nichts bei - er wird in der Diagnose als blockiert auftauchen
+  und ist dort kein Befund, sondern die Regel bei der Arbeit.
 
   Warum connect-src hier NICHT die TANSS-Adresse nennt: Sie steht erst in der
   config.json der jeweiligen Installation. Bei einer gemeinsam genutzten Ablage bringt
@@ -40,7 +60,7 @@
 -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' https://appsforoffice.microsoft.com;
+  script-src 'self' https://appsforoffice.microsoft.com https://ajax.aspnetcdn.com;
   style-src 'self';
   img-src 'self' data:;
   font-src 'self';

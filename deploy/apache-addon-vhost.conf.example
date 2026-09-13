@@ -118,7 +118,7 @@
     # Ist in der config.json keine Anwendungs-Id hinterlegt, werden die letzten beiden
     # nie angesprochen; sie schaden dann nicht und ersparen eine Aenderung, wenn die
     # Id nachgereicht wird.
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://appsforoffice.microsoft.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' <tanss-url> https://login.microsoftonline.com https://graph.microsoft.com; frame-src https://login.microsoftonline.com; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self' https://*.office.com https://*.office365.com https://*.officeapps.live.com https://*.outlook.com https://*.microsoft365.com https://*.cloud.microsoft"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://appsforoffice.microsoft.com https://ajax.aspnetcdn.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' <tanss-url> https://login.microsoftonline.com https://graph.microsoft.com; frame-src https://login.microsoftonline.com; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self' https://*.office.com https://*.office365.com https://*.officeapps.live.com https://*.outlook.com https://*.microsoft365.com https://*.cloud.microsoft"
 
     Header always set X-Content-Type-Options "nosniff"
     Header always set Referrer-Policy "no-referrer"
