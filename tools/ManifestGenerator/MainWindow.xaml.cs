@@ -170,6 +170,7 @@ public partial class MainWindow : Window
         providerName: HerausgeberFeld.Text,
         supportUrl: SupportFeld.Text,
         entraClientId: EntraFeld.Text,
+        tenantHint: MandantFeld.Text,
         embedTanssInUrl: AdresseEinbetten.IsChecked == true);
 
     /// <summary>Ein Prüfergebnis, wie die Liste es zeigt.</summary>

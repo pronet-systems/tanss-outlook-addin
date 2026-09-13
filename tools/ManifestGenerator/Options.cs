@@ -56,6 +56,17 @@ public sealed record Options
     public string EntraClientId { get; init; } = "";
 
     /// <summary>
+    /// Der Mandant, gegen den die Registrierung geprueft wird - Domaene oder Kennung.
+    /// </summary>
+    /// <remarks>
+    /// Er steht NICHT im Manifest und aendert am Add-in nichts. Er wird ausschliesslich
+    /// fuer den Prueflauf gebraucht: Ohne Mandanten weist der Anmeldedienst eine Anfrage
+    /// ohne Browsersitzung ab, bevor er die Anwendungs-Id ueberhaupt ansieht - die
+    /// Pruefung koennte dann nichts feststellen und muesste das auch so sagen.
+    /// </remarks>
+    public string TenantHint { get; init; } = "";
+
+    /// <summary>
     /// Ob die TANSS-Adresse in die Seitenaufrufe geschrieben wird.
     /// </summary>
     /// <remarks>
@@ -75,8 +86,16 @@ public sealed record Options
         get
         {
             var basis = $"{AddinBase.GetLeftPart(UriPartial.Path).TrimEnd('/')}/";
-            if (!EmbedTanssInUrl) return basis;
-            return $"{basis}?tanss={Uri.EscapeDataString(TanssApi.ToString().TrimEnd('/'))}";
+            var teile = new List<string>();
+            if (EmbedTanssInUrl)
+            {
+                teile.Add($"tanss={Uri.EscapeDataString(TanssApi.ToString().TrimEnd('/'))}");
+            }
+            if (EntraClientId.Length > 0)
+            {
+                teile.Add($"entra={Uri.EscapeDataString(EntraClientId)}");
+            }
+            return teile.Count == 0 ? basis : $"{basis}?{string.Join("&", teile)}";
         }
     }
 
@@ -99,6 +118,7 @@ public sealed record Options
         string providerName,
         string supportUrl,
         string entraClientId,
+        string tenantHint,
         bool embedTanssInUrl)
     {
         var basis = RequireHttps(nameof(AddinBase), addinBase);
@@ -131,6 +151,7 @@ public sealed record Options
                 ? null
                 : RequireHttps(nameof(SupportUrl), supportUrl),
             EntraClientId = id,
+            TenantHint = (tenantHint ?? "").Trim(),
             EmbedTanssInUrl = embedTanssInUrl,
         };
     }

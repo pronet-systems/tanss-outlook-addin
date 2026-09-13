@@ -82,6 +82,11 @@
             <TextBlock Style="{StaticResource Hinweis}"
                        Text="Optional. Ohne sie setzt das Pane die E-Mail aus Office-Bordmitteln zusammen — eine Rekonstruktion statt des Originals: Empfangskette und Signaturköpfe fehlen dann."/>
 
+            <TextBlock Style="{StaticResource Beschriftung}" Text="Mandant (nur für die Prüfung)"/>
+            <TextBox x:Name="MandantFeld"/>
+            <TextBlock Style="{StaticResource Hinweis}"
+                       Text="Ihre Microsoft-365-Domäne, z. B. beispiel.de — oder die Verzeichnis-ID. Steht nicht im Manifest und ändert am Add-in nichts. Ohne diese Angabe können die beiden Entra-Prüfungen nichts feststellen: Der Anmeldedienst weist eine Anfrage ohne Browsersitzung ab, bevor er die Anwendungs-Id ansieht."/>
+
             <CheckBox x:Name="AdresseEinbetten" IsChecked="True" Margin="0,16,0,0"
                       Content="TANSS-Adresse in das Manifest schreiben"/>
             <TextBlock Style="{StaticResource Hinweis}"

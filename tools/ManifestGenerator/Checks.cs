@@ -42,8 +42,11 @@ public sealed record CheckResult(string Area, string Name, Verdict Verdict, stri
 /// es liegt. Ein leeres Taskpane sagt nicht, dass eine Kopfzeile fehlt.
 /// </para>
 /// <para>
-/// Alle Pruefungen sind LESEND und ohne Anmeldung. Es werden keine Zugangsdaten
-/// verlangt, nichts veraendert und nichts angelegt.
+/// Alle Pruefungen kommen ohne Zugangsdaten aus und veraendern nichts an TANSS, an der
+/// Ablage oder an der Registrierung. Eine einzige ist nicht rein lesend: Die Pruefung
+/// der Entra-Anwendung fordert einen Anmeldecode an, um zu erfahren, ob es die
+/// Anwendung gibt. Der Code wird nicht benutzt und verfaellt; einloesen koennte ihn
+/// ohnehin nur, wer gueltige Zugangsdaten hat.
 /// </para>
 /// </remarks>
 public static class Checks
@@ -80,7 +83,7 @@ public static class Checks
         if (options.EntraClientId.Length > 0)
         {
             yield return await EntraAppExists(options, cancel);
-            yield return await EntraRedirectRegistered(options, cancel);
+            yield return EntraRedirectHint(options);
         }
         else
         {
@@ -411,100 +414,109 @@ public static class Checks
     /// Gibt es die Entra-Anwendung ueberhaupt?
     /// </summary>
     /// <remarks>
-    /// Gefragt wird der Anmeldedienst mit einer absichtlich NICHT eingetragenen
-    /// Rueckadresse. Die Antwort unterscheidet die beiden Faelle sauber: Meldet er, dass
-    /// er die Anwendung nicht kennt, ist die Id falsch. Beanstandet er die Rueckadresse,
-    /// hat er die Anwendung gefunden - und genau das wollten wir wissen.
+    /// <para>
+    /// Gefragt wird der Geraetecode-Endpunkt, und das ist kein Umweg, sondern der
+    /// einzige Weg. Der gewoehnliche Anmeldeendpunkt verraet einem Unangemeldeten
+    /// NICHTS: Mit `prompt=none` antwortet er auf jede Anfrage damit, dass keine
+    /// Sitzung besteht - auch bei frei erfundener Anwendungs-Id -, und ohne
+    /// `prompt=none` liefert er in allen Faellen die Anmeldeseite. Beides gemessen.
+    /// </para>
+    /// <para>
+    /// Der Geraetecode-Endpunkt dagegen unterscheidet: Eine unbekannte Anwendung ergibt
+    /// AADSTS700016, eine bekannte einen Anmeldecode. Der wird nicht benutzt und
+    /// verfaellt nach wenigen Minuten.
+    /// </para>
     /// </remarks>
     private static async Task<CheckResult> EntraAppExists(Options options, CancellationToken cancel)
     {
         const string name = "Entra-Anwendung vorhanden";
-        var answer = await AskEntra(options.EntraClientId,
-            "https://localhost/nicht-eingetragen", cancel);
 
-        return answer.Code switch
+        if (options.TenantHint.Length == 0)
         {
-            "AADSTS700016" => new CheckResult("Anmeldung", name, Verdict.Fail,
-                $"Der Anmeldedienst kennt die Anwendungs-Id {options.EntraClientId} nicht. "
-                + "Bitte in der Entra-Registrierung unter \"Anwendungs-ID (Client)\" nachsehen."),
-            "AADSTS50011" => new CheckResult("Anmeldung", name, Verdict.Ok,
-                "Die Anwendung ist eingetragen."),
-            "" => new CheckResult("Anmeldung", name, Verdict.Unclear,
-                $"Keine eindeutige Antwort vom Anmeldedienst. {answer.Detail}"),
-            _ => new CheckResult("Anmeldung", name, Verdict.Unclear,
-                $"Der Anmeldedienst antwortete mit {answer.Code}. Die Anwendung scheint zu "
-                + "existieren, die Antwort ist aber nicht eindeutig."),
-        };
-    }
+            return new CheckResult("Anmeldung", name, Verdict.Unclear,
+                "Ohne Mandant laesst sich das nicht feststellen - der Anmeldedienst "
+                + "braucht ihn, um eine Anwendung ueberhaupt nachzuschlagen. Bitte die "
+                + "Microsoft-365-Domaene oder die Verzeichnis-Id eintragen.");
+        }
 
-    /// <summary>
-    /// Ist die Rueckadresse eingetragen, die ein Add-in braucht?
-    /// </summary>
-    /// <remarks>
-    /// Die Anmeldung aus einem Taskpane heraus laeuft nicht ueber eine gewoehnliche
-    /// Webadresse, sondern ueber eine eigene, die den Office-Wirt benennt. Fehlt sie in
-    /// der Registrierung, scheitert die Anmeldung erst beim Techniker - und die Meldung
-    /// dort nennt nicht die Ursache.
-    /// </remarks>
-    private static async Task<CheckResult> EntraRedirectRegistered(Options options,
-        CancellationToken cancel)
-    {
-        const string name = "Rueckadresse des Panes eingetragen";
-        var redirect = $"brk-multihub://{options.AddinBase.Host}";
-        var answer = await AskEntra(options.EntraClientId, redirect, cancel);
+        var url = $"https://login.microsoftonline.com/{Uri.EscapeDataString(options.TenantHint)}"
+            + "/oauth2/v2.0/devicecode";
 
-        return answer.Code switch
+        using var client = Client();
+        using var inhalt = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            "AADSTS50011" => new CheckResult("Anmeldung", name, Verdict.Fail,
-                $"\"{redirect}\" ist in der Entra-Registrierung nicht eingetragen. Sie "
-                + "gehoert dort unter die Plattform \"Einseitige Anwendung (SPA)\"."),
-            "AADSTS700016" => new CheckResult("Anmeldung", name, Verdict.Fail,
-                "Die Anwendungs-Id ist unbekannt - siehe vorige Pruefung."),
-            "" => new CheckResult("Anmeldung", name, Verdict.Ok,
-                $"\"{redirect}\" wird nicht beanstandet."),
-            _ => new CheckResult("Anmeldung", name, Verdict.Unclear,
-                $"Der Anmeldedienst antwortete mit {answer.Code}; die Rueckadresse wurde "
-                + "dabei nicht beanstandet."),
-        };
-    }
+            ["client_id"] = options.EntraClientId,
+            ["scope"] = "https://graph.microsoft.com/Mail.Read",
+        });
 
-    /// <summary>Stellt eine Anmeldeanfrage und liest den Fehlercode aus der Antwort.</summary>
-    private static async Task<(string Code, string Detail)> AskEntra(string clientId,
-        string redirect, CancellationToken cancel)
-    {
-        var url = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-            + $"?client_id={Uri.EscapeDataString(clientId)}"
-            + "&response_type=code"
-            + $"&redirect_uri={Uri.EscapeDataString(redirect)}"
-            + "&scope=openid"
-            + "&response_mode=query"
-            + "&prompt=none";
-
-        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
-        using var client = new HttpClient(handler) { Timeout = Timeout };
         try
         {
-            using var response = await client.GetAsync(new Uri(url), cancel);
+            using var response = await client.PostAsync(new Uri(url), inhalt, cancel);
+            var text = await response.Content.ReadAsStringAsync(cancel);
 
-            // Der Fehler steht entweder in der Umleitung oder im Text der Fehlerseite.
-            var haystack = response.Headers.Location?.ToString() ?? "";
-            if (haystack.Length == 0)
+            if (text.Contains("AADSTS700016", StringComparison.Ordinal))
             {
-                haystack = await response.Content.ReadAsStringAsync(cancel);
+                return new CheckResult("Anmeldung", name, Verdict.Fail,
+                    $"Der Anmeldedienst kennt die Anwendungs-Id {options.EntraClientId} in "
+                    + "diesem Mandanten nicht. Bitte in der Registrierung unter "
+                    + "\"Anwendungs-ID (Client)\" nachsehen - und pruefen, ob der Mandant "
+                    + "der richtige ist.");
+            }
+            if (text.Contains("AADSTS90002", StringComparison.Ordinal))
+            {
+                return new CheckResult("Anmeldung", name, Verdict.Fail,
+                    $"Den Mandanten \"{options.TenantHint}\" gibt es nicht.");
+            }
+            if (response.IsSuccessStatusCode)
+            {
+                return new CheckResult("Anmeldung", name, Verdict.Ok,
+                    "Die Anwendung ist in diesem Mandanten eingetragen.");
             }
 
-            var marker = haystack.IndexOf("AADSTS", StringComparison.Ordinal);
-            if (marker < 0) return ("", $"HTTP {(int)response.StatusCode}, kein Fehlercode.");
-
-            var code = new string(haystack[marker..]
-                .TakeWhile(c => char.IsLetterOrDigit(c))
-                .ToArray());
-            return (code, "");
+            // Ein anderer Fehler heisst fast immer: Die Anwendung gibt es, aber sie ist
+            // anders eingestellt (etwa ohne oeffentliche Clientflows). Fuer die Frage,
+            // ob es sie gibt, genuegt das - der Dienst hat sie nachgeschlagen.
+            var code = Fehlercode(text);
+            return new CheckResult("Anmeldung", name, Verdict.Ok,
+                $"Die Anwendung ist eingetragen. Der Anmeldedienst beanstandet etwas "
+                + $"anderes ({code}) - fuer den Weg, den das Pane nimmt, spielt das keine "
+                + "Rolle.");
         }
         catch (Exception error) when (error is HttpRequestException or TaskCanceledException)
         {
-            return ("", $"Der Anmeldedienst ist von hier nicht erreichbar: {Short(error)}");
+            return new CheckResult("Anmeldung", name, Verdict.Unclear,
+                $"Der Anmeldedienst ist von hier nicht erreichbar: {Short(error)}");
         }
+    }
+
+    /// <summary>
+    /// Die Rueckadresse, die ein Taskpane braucht - von aussen NICHT pruefbar.
+    /// </summary>
+    /// <remarks>
+    /// Gemessen: Der Anmeldedienst beanstandet eine nicht eingetragene Rueckadresse
+    /// gegenueber einem Unangemeldeten nicht. Er tut es erst nach der Anmeldung, und
+    /// dann sieht es der Techniker - nicht dieser Prueflauf.
+    ///
+    /// Statt eines "OK", das nichts belegt, nennt diese Pruefung deshalb den genauen
+    /// Wert. Er ist die haeufigste Fehlerquelle der ganzen Einrichtung, und er ist in
+    /// zwei Sekunden nachgesehen.
+    /// </remarks>
+    private static CheckResult EntraRedirectHint(Options options)
+    {
+        var redirect = $"brk-multihub://{options.AddinBase.Host}";
+        return new CheckResult("Anmeldung", "Rueckadresse des Panes", Verdict.Unclear,
+            $"Von aussen nicht pruefbar - der Anmeldedienst beanstandet eine fehlende "
+            + "Rueckadresse erst nach der Anmeldung. Bitte in der Registrierung unter "
+            + "Authentifizierung nachsehen, Plattform \"Einseitige Anwendung (SPA)\": "
+            + $"{redirect} - nur die Herkunft, ohne Pfad.");
+    }
+
+    /// <summary>Der erste AADSTS-Code in einer Antwort, oder ein Ersatztext.</summary>
+    private static string Fehlercode(string text)
+    {
+        var marker = text.IndexOf("AADSTS", StringComparison.Ordinal);
+        if (marker < 0) return "ohne Fehlercode";
+        return new string(text[marker..].TakeWhile(char.IsLetterOrDigit).ToArray());
     }
 
     /* ------------------------------------------------------------- Hilfsmittel */

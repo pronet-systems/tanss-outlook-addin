@@ -261,10 +261,19 @@ Anmeldung:
 | Ablage | erreichbar, Symbole vorhanden, `X-Frame-Options`, `frame-ancestors` |
 | TANSS | API antwortet unter dem angegebenen Pfad, fremder Ursprung zugelassen |
 | Zertifikat | Ablaufdatum beider Adressen |
-| Anmeldung | Entra-Anwendung vorhanden, Rückadresse des Panes eingetragen |
+| Anmeldung | Entra-Anwendung vorhanden (braucht den Mandanten) |
 
 Ein dritter Ausgang neben „in Ordnung" und „beanstandet" ist **„unklar"**: Eine Prüfung,
-die keine Antwort bekommen hat, gilt nicht als bestanden.
+die keine Antwort bekommen hat, gilt nicht als bestanden. Die Rückadresse der
+Entra-Registrierung steht dauerhaft auf „unklar" — der Anmeldedienst beanstandet eine
+fehlende Rückadresse gegenüber einem Unangemeldeten nicht, sondern erst nach der
+Anmeldung. Statt eines „OK", das nichts belegt, nennt der Prüflauf dort den genauen
+Wert zum Nachsehen.
+
+Alle Prüfungen kommen ohne Zugangsdaten aus und verändern nichts. Eine ist nicht rein
+lesend: Die Prüfung der Entra-Anwendung fordert einen Anmeldecode an, um zu erfahren, ob
+es die Anwendung gibt. Der Code wird nicht benutzt und verfällt; einlösen könnte ihn
+ohnehin nur, wer gültige Zugangsdaten hat.
 
 ### 4. In Outlook bereitstellen
 
@@ -351,9 +360,11 @@ Die Anwendungs-Id tragen Sie im Generator ein; sie wandert in die Adressen des
 Manifests. Im Manifest selbst steht **kein** Anmeldeblock: Das Pane holt sein Token über
 die verschachtelte Anmeldung, und die verlangt dafür nichts im Manifest.
 
-Ob die Anwendung existiert und ob die Rückadresse wirklich eingetragen ist, prüft der
-Generator mit — das ist der Fehler, der sonst erst beim Techniker auftaucht, mit einer
-Meldung, die die Ursache nicht nennt.
+Ob es die Anwendung gibt, prüft der Generator mit; dafür braucht er im Feld *Mandant*
+Ihre Microsoft-365-Domäne oder die Verzeichnis-ID. Die **Rückadresse lässt sich von
+außen nicht prüfen** — Microsoft gibt sie Unangemeldeten nicht preis. Sie ist zugleich
+die häufigste Fehlerquelle der ganzen Einrichtung, und der Prüflauf nennt deshalb den
+genauen Wert, den Sie unter *Authentifizierung* nachsehen sollten.
 
 ---
 
