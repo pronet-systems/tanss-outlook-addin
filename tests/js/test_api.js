@@ -179,8 +179,12 @@ function ticketForm(overrides = {}, mail = null) {
   form.set("ticket", JSON.stringify({
     companyId: 3, title: "Drucker streikt", content: "Text", ...overrides,
   }));
+  // Die Nachricht gehoert IMMER dazu: Ohne sie legt der Dienst kein Ticket an. Das
+  // Werkzeug ist dazu da, eine E-Mail in TANSS zu bringen - ein Ticket ohne sie waere ein
+  // leerer Vorgang. Die Attrappe bildet das ab, statt einen Vertrag zu pruefen, den es
+  // nicht mehr gibt.
+  form.set("eml", new Blob(["nachricht"]), "nachricht.eml");
   if (mail) {
-    form.set("eml", new Blob(["nachricht"]), "nachricht.eml");
     form.set("internetMessageId", mail.messageId || "");
     form.set("subject", mail.subject || "");
   }
@@ -365,4 +369,24 @@ test("die Maske bietet gar kein Abteilungsfeld mehr an", async () => {
   assert.equal("departments" in result.data, false);
   assert.equal(calls.some((c) => c.path === "/api/v1/employees/departments"), false,
     "die Liste wird nicht mehr geholt - ein Abruf bei jedem Oeffnen weniger");
+});
+
+test("ohne die E-Mail entsteht kein Ticket", async () => {
+  // Das Werkzeug ist dazu da, eine E-Mail in TANSS zu bringen. Ein Ticket ohne sie waere
+  // ein leerer Vorgang, den jemand spaeter von Hand nachziehen muesste - und bis dahin
+  // saehe es aus, als sei alles erledigt.
+  //
+  // Die Regel steht im DIENST und nicht nur in der Maske: Eine Oberflaeche, die das
+  // kuenftig anders sieht, kommt hier nicht vorbei.
+  routes = { ...OPTIONEN };
+  calls.length = 0;
+
+  const form = new FormData();
+  form.set("ticket", JSON.stringify({ companyId: 3, title: "Ohne Mail" }));
+
+  const result = await api.post("api/tickets", { form });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "CONFLICT");
+  assert.equal(calls.some((c) => c.method === "POST" && c.path === "/api/v1/tickets"), false,
+    "es darf nichts geschrieben worden sein");
 });

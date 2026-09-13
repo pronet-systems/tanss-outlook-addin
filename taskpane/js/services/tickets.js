@@ -194,6 +194,15 @@ export async function ticketOptions(query, { signal } = {}) {
  * nicht gibt.
  */
 export async function createTicket(form, { signal } = {}) {
+  // OHNE MAIL KEIN TICKET, und die Regel steht HIER und nicht nur in der Maske. Das
+  // Werkzeug ist dazu da, eine E-Mail in TANSS zu bringen; ein Ticket ohne sie waere ein
+  // leerer Vorgang, den jemand spaeter von Hand nachziehen muesste - und bis dahin sieht
+  // es aus, als sei alles erledigt. Eine Maske, die das kuenftig anders sieht, kommt hier
+  // nicht vorbei.
+  if (!form.get("eml")) {
+    throw new ApiError("CONFLICT", "Ohne die E-Mail wird kein Ticket angelegt.");
+  }
+
   const draft = readTicket(form);
   const options = await repository().ticketOptions({
     companyId: draft.companyId || null,
@@ -251,7 +260,6 @@ const MAIL_STATUS_CODES = {
  * nicht erreichbaren TANSS sehr wohl.
  */
 async function attachOrReport(ticketId, form, signal) {
-  if (!form.get("eml")) return { status: "skipped" };
   try {
     return { status: "attached", ...(await attach(ticketId, form, signal)) };
   } catch (error) {

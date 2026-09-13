@@ -253,11 +253,7 @@ export async function render(ctx) {
     title: data.title || titleFromSubject(message.subject),
     content: quoted.body,
     trailer: quoted.trailer,
-    // Kein Schalter mehr: Die Mail wird immer abgelegt, das ist der Zweck des Werkzeugs.
-    // `withoutMail` wird ausschliesslich durch den Ausweg gesetzt, den ein gescheiterter
-    // Mailabruf anbietet - und gilt dann nur fuer diesen einen Vorgang.
-    withoutMail: false,
-    mailError: null,
+
     typeId: numberOrNull(prefs[PREF_TYPE]),
     // Nicht gemerkt: Die Prioritaet gehoert zum einzelnen Vorgang, nicht zur Gewohnheit.
     // Ein vor Wochen gewaehlter Wert stillschweigend wieder einzusetzen hiesse, jedem
@@ -332,25 +328,6 @@ export async function render(ctx) {
   function renderNotices() {
     const children = [];
 
-    // Der Ausweg, und nur wenn er gebraucht wird: Frueher stand dafuer bei JEDEM Vorgang
-    // ein Kontrollkaestchen da, mit dem sich die Hauptfunktion abwaehlen liess. Ein
-    // Angebot, das erst im Fehlerfall erscheint, kostet im Regelfall nichts - und steht
-    // im Fehlerfall genau dort, wo man es sucht.
-    if (state.mailError) {
-      children.push(
-        ui.banner({
-          tone: "warn",
-          label: errorText(state.mailError),
-          actionLabel: T.ticketNeu.createWithoutMail,
-          onAction: () => {
-            state.withoutMail = true;
-            state.mailError = null;
-            renderNotices();
-            void submit();
-          },
-        }),
-      );
-    }
     if (state.attachedTo.length > 0) {
       children.push(
         ui.banner({
@@ -850,18 +827,17 @@ export async function render(ctx) {
       }),
     );
 
-    if (!state.withoutMail) {
+    {
       statusLine.textContent = T.mail.fetching;
       const mail = await mime.fetchMessageMime({ maxBytes: maxEmlBytes() });
       if (ctx.signal.aborted) return;
       if (!mail.ok) {
-        // Kein stilles Anlegen ohne Mail: Wer ein Ticket aus einer Mail macht, will die
-        // Mail daran haben. Statt hier abzubrechen und den Techniker ratlos zu lassen,
-        // wird der Grund genannt und der Ausweg angeboten - er entscheidet, ob das Ticket
-        // trotzdem entstehen soll.
-        state.mailError = mail.error;
+        // OHNE MAIL KEIN TICKET. Das Werkzeug ist dazu da, eine E-Mail in TANSS zu
+        // bringen; ein Ticket ohne sie waere ein leerer Vorgang, den jemand spaeter von
+        // Hand nachziehen muesste - und bis dahin sieht es aus, als sei alles erledigt.
+        // Der Abruf wird also wiederholt, nicht uebergangen.
         finishSubmit();
-        renderNotices();
+        ctx.showError(mail.error);
         return;
       }
       statusLine.textContent = t("mail.sizeInfo", { size: formatBytes(mail.data.bytes) });
@@ -873,7 +849,6 @@ export async function render(ctx) {
       }
     }
 
-    state.mailError = null;
     if (state.idempotencyKey === "") state.idempotencyKey = api.newIdempotencyKey();
     statusLine.textContent = T.ticketNeu.submitting;
 
@@ -951,11 +926,6 @@ export async function render(ctx) {
 
     if (mail.status === "attached") {
       children.push(ui.banner({ tone: "ok", label: nummer }));
-    } else if (mail.status === "skipped") {
-      children.push(ui.banner({
-        tone: "info",
-        label: `${nummer} ${T.ticketNeu.successMailSkipped}`,
-      }));
     } else {
       const helps = !RETRY_POINTLESS.has(String(mail.cause || ""));
       children.push(
