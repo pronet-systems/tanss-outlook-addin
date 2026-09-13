@@ -226,9 +226,19 @@ schwächer. Mehr dazu unter [Die Originalnachricht](#die-originalnachricht).
 Die Registrierung braucht **kein Geheimnis** — kein Client-Secret, kein Zertifikat, nichts
 was ablaufen könnte.
 
-1. **Entra-Portal öffnen:** [entra.microsoft.com](https://entra.microsoft.com). Alternativ
-   über das Microsoft 365 Admin Center → *Alle anzeigen* → *Identität*.
-2. Links **Anwendungen** → **App-Registrierungen** → oben **Neue Registrierung**.
+> **Welche Rolle Sie dafür brauchen: meist gar keine.** Microsoft: *„By default in
+> Microsoft Entra ID, all users can register applications."* Wer registriert, wird
+> automatisch Besitzer. Nur wenn Ihr Mandant unter *Entra ID → Benutzer →
+> Benutzereinstellungen* die Option **Registrieren von Anwendungen** auf *Nein* gesetzt
+> hat, brauchen Sie die Rolle **Anwendungsentwickler**.
+
+1. **Entra-Portal öffnen:** [entra.microsoft.com](https://entra.microsoft.com).
+2. Links **Entra ID** → **App-Registrierungen** → oben **Neue Registrierung**.
+
+   > Findet sich der Punkt nicht: Die Navigation ist mehrfach umgebaut worden. Der
+   > verlässlichste Weg ist die **Suchleiste oben** — „App-Registrierungen" eintippen.
+   > Derselbe Dialog liegt auch im Azure-Portal unter *portal.azure.com → Microsoft Entra
+   > ID → App-Registrierungen*.
 3. **Name** frei wählen, zum Beispiel `TANSS Outlook Add-in`. Er ist nur für Sie.
 4. **Unterstützte Kontotypen:** *Nur Konten in diesem Organisationsverzeichnis*
    (Einzelmandant). Das Add-in wird ausschließlich in Ihrem Mandanten benutzt.
@@ -255,7 +265,13 @@ was ablaufen könnte.
 8. Links **API-Berechtigungen** → **Berechtigung hinzufügen** → **Microsoft Graph** →
    **Delegierte Berechtigungen** → `Mail.Read` auswählen → **Berechtigungen hinzufügen**.
 9. Je nach Mandanteinstellung ist danach **Administratorzustimmung erteilen** nötig.
-   Steht in der Spalte *Status* ein gelbes Warnzeichen, ist sie nötig.
+   Steht in der Spalte *Status* ein gelbes Warnzeichen, ist sie nötig — und dafür braucht
+   es dann **Cloudanwendungsadministrator** oder höher.
+
+> **Der Mandant lässt sich später nicht wechseln.** Microsoft: *„Nach der Erstellung
+> können Sie das Anwendungsobjekt nicht zwischen verschiedenen Mandanten verschieben."*
+> Wer versehentlich im falschen Mandanten registriert, löscht und legt neu an — mit neuer
+> Anwendungs-Id, die dann auch im Manifest nachzuziehen ist.
 
 Es wird **kein Clientgeheimnis** angelegt und **keine Anwendungsberechtigung** vergeben.
 Das Add-in handelt immer als der angemeldete Techniker, nie als Anwendung.
@@ -321,9 +337,14 @@ Microsoft 365 Admin Center → **Einstellungen** → **Integrierte Apps** → ob
 **App hochladen** → **Office-Add-In** → **Manifestdatei (.xml) von diesem Gerät
 hochladen**.
 
-> Der Punkt heißt **nicht** „Add-Ins" — der führt zu den älteren Exchange-Add-ins. Wenn
-> Sie in *Integrierte Apps* keinen Weg zum Hochladen finden, fehlt Ihnen die Rolle: Nötig
-> ist **Globaler Administrator** oder **Exchange-Administrator**.
+> **„Integrierte Apps" ist kein Punkt oberster Ebene** — er liegt unter *Einstellungen*.
+> Fehlt er ganz, fehlt die Rolle: Sichtbar ist er für **Globaler Administrator**,
+> **Globaler Leser**, **KI-Administrator**, **Exchange-Administrator** und
+> **Azure-Anwendungsadministrator**. Alle anderen sehen ihn nicht — das ist kein Fehler.
+>
+> Es gibt einen **zweiten Weg** zum selben Ziel: auf derselben Seite oben der Link
+> **Add-Ins** → *Add-In bereitstellen*. Er führt in den älteren Assistenten, in dem sich
+> die Bereitstellungsart ausdrücklich setzen lässt.
 
 Die Datei wird **hochgeladen, nicht verlinkt**. Ihr Webserver muss für Microsoft also nie
 erreichbar sein — und die gepflegte Ablage wird von Microsoft ebenfalls nie abgerufen.
@@ -336,10 +357,20 @@ Neustart von Outlook beschleunigt es oft.
 
 ### 4. Der erste Start beim Techniker
 
-1. Outlook öffnen, eine **E-Mail auswählen** (nicht nur die Leseansicht — das Add-in
-   braucht ein geöffnetes Element).
-2. Im Menüband erscheint **eine** Schaltfläche „TANSS" mit Aufklappmenü: *Ticket
-   erstellen* und *An Ticket anhängen*.
+1. Outlook öffnen und eine **E-Mail auswählen**. Ohne ausgewähltes Element bleibt die
+   Schaltfläche ausgegraut.
+2. **Wo die Schaltfläche liegt, ist je nach Outlook verschieden** — das ist die häufigste
+   Fehlannahme beim ersten Test:
+
+   | Outlook | Wo „TANSS" erscheint |
+   |---|---|
+   | Klassisch für Windows | Im Menüband. Registerkarte **Start** bei markierter Nachricht, **Nachricht** im geöffneten Fenster, **Termin** beim eigenen Termin |
+   | Neu für Windows, im Browser | **Nicht** im Menüband. Unter **Weitere Apps** im Menüband oder **Apps** in der Aktionsleiste der Nachricht |
+   | Mac | Im Menüband; ist sie nicht zu sehen, hinter der Schaltfläche mit den **Auslassungspunkten (…)** |
+
+   Im neuen Outlook und im Browser lässt sich das Add-in aus dieser Liste **anheften**,
+   danach steht es fest sichtbar.
+
 3. Beim ersten Öffnen fragt das Taskpane nach den **TANSS-Zugangsdaten** des Technikers.
    Die Anmeldeseite zeigt dabei an, **gegen welche Instanz** sie sich anmeldet — ein Blick
    darauf gehört zur Sorgfalt, denn eine untergeschobene Adresse wäre eine Anmeldemaske,
@@ -351,6 +382,10 @@ Bleibt etwas stehen, führt der Knopf **Diagnose** im Kopf des Panes zu einer Se
 zeigt, was der laufende Client tatsächlich meldet — sie ist absichtlich **ohne Anmeldung**
 erreichbar. Ihr Inhalt lässt sich als Text kopieren; das ist die nützlichste Rückmeldung
 bei einer Störung.
+
+> **Beim Verfassen einer Nachricht erscheint keine Schaltfläche.** Das Add-in meldet sich
+> nur beim **Lesen** einer Nachricht und beim **eigenen Termin** an. Wer den ersten Test
+> in einem neuen Mailfenster macht, sucht vergeblich.
 
 ### Eigene Ablage statt der gepflegten
 
@@ -538,13 +573,24 @@ kommt der Start nicht zum Ende.
 > (`telemetryservice.firstpartyapps.oaspapps.com`) wird dort **absichtlich** abgewiesen.
 > Er erscheint in dieser Liste und ist kein Befund.
 
+**Bleibt diese Zeile leer und das Pane hängt trotzdem**, liegt es *nicht* an der
+Inhaltsrichtlinie — der Zuhörer im Pane horcht nur auf deren Verstöße. Dann kommt
+office.js aus einem anderen Grund nicht durch: ein abgelaufenes Zertifikat der Ablage, ein
+Proxy oder Inhaltsfilter, eine Browsererweiterung. Microsoft formuliert den Grundsatz so:
+*„If the Office JavaScript API library files are blocked by network filters, firewalls, or
+browser extensions, Office.onReady will never resolve."*
+
 **Eine Korrektur kommt nicht an.** Der Arbeitsplatz hält eine geladene Fassung zehn
 Minuten vor. Sofort wirksam wird sie so: Outlook schließen, dann den Zwischenspeicher
 leeren und Outlook neu starten.
 
 ```powershell
-Remove-Item "$env:LOCALAPPDATA\Microsoft\Office\16.0\Wef\webview2" -Recurse -Force
+Remove-Item "$env:LOCALAPPDATA\Microsoft\Office\16.0\Wef\*" -Recurse -Force
 ```
+
+Das betrifft nur das **klassische** Outlook für Windows; der WebView2-Zwischenspeicher
+liegt unterhalb dieses Ordners, ein zweiter Löschbefehl ist nicht nötig. Im Browser
+genügt **Strg+F5** im Pane, im neuen Outlook hilft ein Neustart.
 
 **Das Taskpane bleibt weiß.** Bei eigener Ablage sendet fast immer der Webserver
 `X-Frame-Options`. Outlook zeigt das Pane in einem Rahmen fremder Herkunft an; mit dieser
@@ -565,9 +611,21 @@ Ursprung ab. Beides misst der Generator unter **Prüfen** nach.
 vergehen. Outlook neu starten. Erscheinen sie dann immer noch nicht, ist die Zuweisung
 im Admin Center zu prüfen.
 
-**Die Schaltfläche erscheint, ist aber ausgegraut.** Es ist kein Element ausgewählt. Das
-Add-in braucht eine geöffnete oder in der Liste markierte E-Mail beziehungsweise einen
-Termin, dessen Organisator Sie sind.
+**Die Schaltfläche erscheint, ist aber ausgegraut.** Fünf Gründe, in der Reihenfolge
+ihrer Häufigkeit:
+
+1. **Kein Element ausgewählt.** Das Add-in braucht eine markierte oder geöffnete E-Mail
+   beziehungsweise einen Termin, dessen Organisator Sie sind.
+2. **Falsche Elementart.** Outlook aktiviert Add-ins nur bei Nachrichten und Terminen —
+   bei Kontakten, Aufgaben und Notizen bleibt alles grau.
+3. **Kein Microsoft-Postfach.** Ein IMAP- oder POP-Konto trägt keine Add-ins. Nachsehen
+   unter *Datei → Kontoeinstellungen → Kontoeinstellungen*, Spalte *Typ*: Dort muss
+   **Microsoft Exchange** stehen.
+4. **Datenschutzeinstellung sperrt Web-Add-ins.** *Datei → Office-Konto →
+   Kontodatenschutz → Einstellungen verwalten*: Die optionalen verbundenen Erfahrungen
+   müssen eingeschaltet sein.
+5. **Outlook war beim Start ohne Verbindung** — betrifft das neue Outlook für Windows.
+   Dann fehlt die Schaltfläche allerdings ganz, statt grau zu sein. Outlook neu starten.
 
 **Die Schaltflächen erscheinen, das Pane lädt nicht.** Der Arbeitsplatz erreicht die
 Ablage nicht — typisch außerhalb des Firmennetzes ohne VPN, und auf Mobilgeräten.
