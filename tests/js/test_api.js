@@ -344,27 +344,25 @@ test("ein unbekannter Zustand faellt weiterhin auf den Sammelfall", async () => 
   assert.equal(result.error.code, "INTERNAL");
 });
 
-test("die Abteilungsliste wird nicht nach dem Techniker gefiltert", async () => {
-  // Und das ist keine Nachlaessigkeit, sondern die Grenze der Schnittstelle: TANSS gibt
-  // einem Technikertoken die Mehrfachzugehoerigkeit nirgends heraus. Am Mitarbeiter steht
-  // nur seine PRIMAERE Abteilung; an der Abteilung gibt es zwar ein Feld mit ihren
-  // Mitarbeitern, aber es wird in keiner Ausfuehrlichkeitsstufe ausgeliefert.
+test("die Maske bietet gar kein Abteilungsfeld mehr an", async () => {
+  // Anbieten liesse sich nur die vollstaendige Liste der Instanz - und daraus einen
+  // Eintrag zu waehlen, dem der zugewiesene Techniker nicht angehoert, ist in TANSS eine
+  // Zuweisung, die niemanden erreicht. Sie faellt niemandem auf, weil beide Felder fuer
+  // sich betrachtet gueltig aussehen.
   //
-  // Beide Wege sind gebaut und gemessen worden, beide sind gescheitert. Eine Filterung auf
-  // halber Strecke waere schlechter als keine: Sie saehe richtig aus und liesse
-  // Abteilungen verschwinden, denen der Techniker sehr wohl angehoert. Dieser Fall haelt
-  // fest, dass hier bewusst NICHT gefiltert wird.
+  // Auf die Abteilungen des Technikers einzuschraenken ist mit seinem Token nicht
+  // moeglich; beide Wege sind gebaut und gemessen worden. Damit blieb die Wahl zwischen
+  // einem Feld, das in die Irre fuehren kann, und keinem Feld.
   routes = {
     "GET /api/v1/admin/ticketTypes": { content: [] },
     "GET /api/v1/admin/ticketStates": { content: [] },
     "GET /api/v1/employees/technicians": { content: [{ id: 5, name: "Anna" }] },
-    "GET /api/v1/employees/departments": {
-      content: [{ id: 1, name: "Geschäftsleitung" }, { id: 2, name: "Technik" }],
-    },
   };
+  calls.length = 0;
 
-  const result = await api.get("api/tickets/options", { query: { assigneeId: 5 } });
+  const result = await api.get("api/tickets/options", { query: {} });
   assert.equal(result.ok, true);
-  assert.deepEqual(result.data.departments,
-    [{ id: 1, name: "Geschäftsleitung" }, { id: 2, name: "Technik" }]);
+  assert.equal("departments" in result.data, false);
+  assert.equal(calls.some((c) => c.path === "/api/v1/employees/departments"), false,
+    "die Liste wird nicht mehr geholt - ein Abruf bei jedem Oeffnen weniger");
 });

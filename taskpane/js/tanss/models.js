@@ -104,7 +104,6 @@ export function ticketWrite(draft) {
     typeId: draft.typeId,
     statusId: draft.statusId,
     assignedToEmployeeId: draft.assignedToEmployeeId,
-    assignedToDepartmentId: draft.assignedToDepartmentId,
     // Der Draht-Name ist `priority`. Ohne Auswahl geht das Feld GAR NICHT mit: Der Server
     // setzt dann seine eigene, je Instanz eingestellte Vorgabe. Eine 0 zu senden waere
     // gleichbedeutend, aber eine hier gewaehlte Zahl waere eine Behauptung ueber eine

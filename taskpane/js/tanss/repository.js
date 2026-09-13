@@ -307,9 +307,12 @@ export class TanssRepository {
    * Auswahl. Das ist die mildere Annahme: Ein erfundener Zwang hielte den Techniker
    * von einem gueltigen Ticket ab.
    */
-  async ticketOptions({ companyId = null, typeId = null, assigneeId = null,
-    departmentId = null, signal } = {}) {
-    const key = `${companyId || 0}|${typeId || 0}|${assigneeId || 0}|${departmentId || 0}`;
+  async ticketOptions({ signal } = {}) {
+    // Die Listen haengen von nichts ab, was die Maske einstellt - ein fester Schluessel
+    // genuegt. Frueher gingen Firma, Typ und Zuweisung mit ein, weil die Feldsteuerung
+    // davon abhing; die gibt es nicht mehr, und ein Schluessel, der sich bei jeder
+    // Auswahl aendert, holte dieselben drei Listen immer wieder neu.
+    const key = "alle";
     const cached = this._options.get(key);
     if (cached) return cached;
 
@@ -319,7 +322,7 @@ export class TanssRepository {
     const failures = [];
 
     const rules = TanssRepository.FIELD_RULES;
-    const [types, states, technicians, departments] = await Promise.all([
+    const [types, states, technicians] = await Promise.all([
       // Neben den Ticketstatus, und aus demselben Grund erreichbar: Das "admin" im Pfad
       // ist ein Namensteil, keine Rollenforderung - diese Flaeche liegt unter derselben
       // Rolle wie der uebrige Fachzugriff. Es gibt eine zweite, dokumentierte Typenliste
@@ -341,8 +344,6 @@ export class TanssRepository {
         .map(namedId), failures),
       this._list("/api/v1/employees/technicians", signal,
         (raw) => raw.filter((item) => item && item.id).map(namedId), failures),
-      this._list("/api/v1/employees/departments", signal,
-        (raw) => raw.filter((item) => item && item.id).map(namedId), failures),
     ]);
 
     const options = {
@@ -353,7 +354,6 @@ export class TanssRepository {
       types: types.length > 0 ? types : (this.config.ticketTypes || []),
       states,
       technicians,
-      departments,
       ...rules,
       failures,
     };

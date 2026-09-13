@@ -187,7 +187,6 @@ export const T = deepFreeze({
     priority: "Priorität",
     priorityDefault: "— Vorgabe von TANSS —",
     assignee: "Zuweisung",
-    department: "Abteilung",
     internal: "Intern",
     attachMail: "E-Mail am Ticket ablegen",
     similarHeading: "Ähnliche Tickets",

@@ -50,7 +50,6 @@ const PRIORITIES = Array.from({ length: 9 }, (unused, index) => {
 });
 const PREF_STATUS = "ticketStatusId";
 const PREF_ASSIGNEE = "assignedToEmployeeId";
-const PREF_DEPARTMENT = "assignedToDepartmentId";
 
 /** Trennzeichen zwischen zwei Angaben einer Zeile. Satzzeichen, kein uebersetzbarer Text. */
 const SEPARATOR = " · ";
@@ -263,7 +262,6 @@ export async function render(ctx) {
     priority: null,
     statusId: numberOrNull(prefs[PREF_STATUS]),
     assigneeId: numberOrNull(prefs[PREF_ASSIGNEE]),
-    departmentId: numberOrNull(prefs[PREF_DEPARTMENT]),
     /** Leer heisst: der naechste Absendeversuch ist ein NEUER Vorgang. */
     idempotencyKey: "",
     submitting: false,
@@ -653,9 +651,6 @@ export async function render(ctx) {
     if (!contains(options.types, state.typeId)) state.typeId = null;
     if (!contains(options.states, state.statusId)) state.statusId = null;
     if (!contains(options.technicians, state.assigneeId)) state.assigneeId = null;
-    // Ein gemerkter Wert, der nicht mehr zur Auswahl steht, wird gestrichen. Bei der
-    // Abteilung ist das der Regelfall: Sie haengt am Techniker, und mit ihm wechselt sie.
-    if (!contains(options.departments, state.departmentId)) state.departmentId = null;
 
     const defaults = ctx.me && ctx.me.defaults ? ctx.me.defaults : {};
     const fallbackType = numberOrNull(defaults.ticketTypeId);
@@ -712,15 +707,6 @@ export async function render(ctx) {
         void loadOptions();
       },
     });
-    const departmentSelect = ui.select({
-      options: toSelectOptions(options.departments),
-      value: state.departmentId,
-      placeholder: T.app.none,
-      onChange: () => {
-        state.departmentId = numberOrNull(departmentSelect.value);
-        markDirty();
-      },
-    });
 
     ui.replace(
       optionsBox,
@@ -732,7 +718,6 @@ export async function render(ctx) {
         control: assigneeSelect,
         required: options.forceAssignment === true,
       }),
-      ui.field({ label: T.ticketNeu.department, control: departmentSelect }),
       internalCheck.root,
     );
   }
@@ -819,7 +804,6 @@ export async function render(ctx) {
         priority: state.priority,
         statusId: state.statusId,
         assignedToEmployeeId: state.assigneeId,
-        assignedToDepartmentId: state.departmentId,
         internal: state.internal,
       }),
     );
@@ -889,7 +873,6 @@ export async function render(ctx) {
       [PREF_TYPE, state.typeId],
       [PREF_STATUS, state.statusId],
       [PREF_ASSIGNEE, state.assigneeId],
-      [PREF_DEPARTMENT, state.departmentId],
     ];
     for (const [key, value] of pairs) {
       if (value === null) continue;

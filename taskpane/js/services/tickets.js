@@ -58,9 +58,6 @@ export async function mailContext(body, { signal } = {}) {
   const companyId = company ? company.id : null;
 
   const { remitter, remitterCandidates } = await resolveRemitter(address, companyId, signal);
-  // Ueber denselben Weg wie jeder spaetere Abruf: Beim Oeffnen ist noch kein Techniker
-  // gewaehlt, also kommt die Abteilungsliste leer - und die Maske braucht nicht zwei
-  // Regeln fuer dasselbe Feld.
   const options = await ticketOptions({ companyId }, { signal });
   const title = titleFromSubject(body.subject);
 
@@ -181,26 +178,7 @@ async function quiet(work, fallback) {
  * stehen bleibt, bietet Werte an, die der Server anschliessend still verwirft.
  */
 export async function ticketOptions(query, { signal } = {}) {
-  // Die Abteilungsliste wird NICHT nach dem gewaehlten Techniker gefiltert, und das ist
-  // keine Nachlaessigkeit, sondern die Grenze der Schnittstelle: TANSS gibt einem
-  // Technikertoken die Mehrfachzugehoerigkeit nirgends heraus.
-  //
-  // Am Mitarbeiter steht nur seine PRIMAERE Abteilung - wer dort liest, bietet einem
-  // Techniker mit drei Abteilungen genau eine an. An der Abteilung gibt es zwar ein Feld
-  // mit ihren Mitarbeitern, aber es wird in keiner Ausfuehrlichkeitsstufe ausgeliefert.
-  // Die vollstaendige Zuordnung fuehrt eine eigene Tabelle, die nur eine Flaeche
-  // ausliefert, die eine andere Tokenart verlangt.
-  //
-  // Beide Wege sind gebaut und gemessen worden; beide sind gescheitert. Eine Filterung
-  // auf halber Strecke waere schlechter als keine: Sie saehe richtig aus und liesse
-  // Abteilungen verschwinden, denen der Techniker sehr wohl angehoert.
-  return repository().ticketOptions({
-    companyId: query.companyId || null,
-    typeId: query.typeId || null,
-    assigneeId: query.assigneeId || null,
-    departmentId: query.departmentId || null,
-    signal,
-  });
+  return repository().ticketOptions({ companyId: query.companyId || null, signal });
 }
 
 /* -------------------------------------------------------------- Ticketanlage */
@@ -221,7 +199,6 @@ export async function createTicket(form, { signal } = {}) {
     companyId: draft.companyId || null,
     typeId: draft.typeId || null,
     assigneeId: draft.assignedToEmployeeId || null,
-    departmentId: draft.assignedToDepartmentId || null,
     signal,
   });
   validate(draft, options);
@@ -367,7 +344,6 @@ function readTicket(form) {
     typeId: Number(body.typeId) || 0,
     statusId: Number(body.statusId) || 0,
     assignedToEmployeeId: Number(body.assignedToEmployeeId) || 0,
-    assignedToDepartmentId: Number(body.assignedToDepartmentId) || 0,
     // `null` heisst: nicht mitsenden. Dann setzt TANSS seine eigene Vorgabe - die ist je
     // Instanz eingestellt und gehoert nicht hierher.
     priority: priorityOrNull(body.priority),
@@ -392,8 +368,7 @@ function validate(draft, options) {
   if (options.remitterRequired && !draft.remitterId) {
     throw new ApiError("REMITTER_REQUIRED");
   }
-  if (options.forceAssignment
-    && !draft.assignedToEmployeeId && !draft.assignedToDepartmentId) {
+  if (options.forceAssignment && !draft.assignedToEmployeeId) {
     throw new ApiError("CONFLICT", "Für diese Firma ist eine Zuweisung Pflicht.");
   }
 }

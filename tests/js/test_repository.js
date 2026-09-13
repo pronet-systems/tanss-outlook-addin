@@ -178,15 +178,19 @@ test("Status kommen sortiert und nur aktiv", async () => {
 });
 
 test("eine ausgefallene Auswahlliste bleibt leer und reisst nichts mit", async () => {
+  // Der Ausfall einer Liste darf die Maske nicht verschliessen: Ein Ticket laesst sich
+  // auch ohne Status und ohne Zuweisung anlegen, und die Alternative waere ein Pane, das
+  // wegen einer Nebensaechlichkeit gar nichts mehr tut.
   const options = await repo({
-    "GET /api/v1/tickets/": new Error("weg"),
+    "GET /api/v1/admin/ticketTypes": { content: [{ id: 1, name: "Störung" }] },
     "GET /api/v1/admin/ticketStates": new Error("weg"),
-    "GET /api/v1/employees/technicians": { content: [{ id: 5, name: "Anna" }] },
-    "GET /api/v1/employees/departments": new Error("weg"),
+    "GET /api/v1/employees/technicians": new Error("weg"),
   }).ticketOptions();
+
   assert.deepEqual(options.states, []);
-  assert.deepEqual(options.departments, []);
-  assert.equal(options.technicians[0].name, "Anna");
+  assert.deepEqual(options.technicians, []);
+  assert.deepEqual(options.types, [{ id: 1, name: "Störung" }], "was da ist, bleibt da");
+  assert.equal(options.failures.length, 2, "und beide Ausfaelle werden benannt");
 });
 
 test("Leistungsarten fallen auf die konfigurierte Vorgabe zurueck", async () => {
