@@ -674,3 +674,8 @@ Zwei Dinge sind davon ausgenommen beziehungsweise gesondert lizenziert: das
 Unternehmenszeichen in `taskpane/assets/logo.png` und die mitgelieferte Fremdbibliothek.
 Beides steht in [NOTICE.md](NOTICE.md) — dort steht auch, wie das Zeichen für eine eigene
 Installation ersetzt oder entfernt wird.
+
+TANSS ist ein Produkt der HUCK IT GmbH, Roßdorf (Amtsgericht Darmstadt, HRB 95700). Dieses
+Projekt ist ein unabhängiges Werkzeug, steht in keiner Verbindung zur HUCK IT GmbH und wird von
+ihr weder unterstützt noch geprüft. Marken gehören ihren jeweiligen Inhabern; die Nennung dient
+allein dazu, zu sagen, wofür dieses Werkzeug gemacht ist.
