@@ -608,3 +608,14 @@ test("das Pane ruft nur Flaechen auf, die seine Tokenart erreicht", () => {
   assert.deepEqual(fundstellen, [],
     "Aufruf einer Flaeche, die eine andere Tokenart verlangt - er wird immer abgewiesen");
 });
+
+test("die Ticketliste wird nie per GET gerufen", () => {
+  // Unter /api/v1/tickets sind nur POST und PUT definiert - ein GET auf diese Route gibt
+  // es nicht. Der frueher dort vermutete meta-Block mit der Feldsteuerung kostete bei
+  // jedem Oeffnen der Maske eine Umlaufzeit und landete zuverlaessig im Rueckfall. Die
+  // Maske meldete deshalb IMMER, die Listen staemmten aus dem Rueckfall - und schob damit
+  // einer Gegenstelle zu, was hier falsch gebaut war.
+  const quelle = ohneKommentare(join(TASKPANE, "js", "tanss", "repository.js"));
+  assert.ok(!/client\.get\(\s*["'`]\/api\/v1\/tickets\/["'`]/.test(quelle),
+    "GET auf /api/v1/tickets/ - diese Route gibt es nicht");
+});

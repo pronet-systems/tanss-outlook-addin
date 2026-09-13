@@ -238,6 +238,17 @@ export async function attachMail(ticketId, form, { signal } = {}) {
 }
 
 /**
+ * Die Zustaende, die TANSS je hochgeladener Datei meldet - auf eigene Fehlercodes.
+ *
+ * Was hier nicht steht, faellt auf INTERNAL zurueck. Das ist Absicht: Ein neuer Zustand
+ * soll als unerwarteter Fehler auffallen und nicht stillschweigend als Erfolg gelten.
+ */
+const MAIL_STATUS_CODES = {
+  TOO_BIG: "MAIL_TOO_LARGE",
+  EMPTY: "MAIL_EMPTY",
+};
+
+/**
  * Die Mailablage innerhalb der Ticketanlage - sie darf NIE werfen.
  *
  * `code` traegt den Sammelbegriff, den die Erfolgsseite als Ueberschrift benutzt, und
@@ -291,7 +302,11 @@ async function attach(ticketId, form, signal) {
   }, { signal });
 
   if (outcome.status !== "OK") {
-    throw new ApiError(outcome.status === "TOO_BIG" ? "MAIL_TOO_LARGE" : "INTERNAL");
+    // TANSS kennt vier Zustaende: OK, TOO_BIG, ERROR und EMPTY. Die letzten beiden fielen
+    // frueher in denselben Sammelfall. "EMPTY" nennt aber eine Ursache, die der Techniker
+    // sofort versteht und selbst beheben kann - sie gehoert nicht hinter "unerwarteter
+    // Fehler".
+    throw new ApiError(MAIL_STATUS_CODES[outcome.status] || "INTERNAL");
   }
   if (outcome.storedAsDocument) {
     throw new ApiError("MAIL_STORED_AS_DOCUMENT");

@@ -138,47 +138,27 @@ test("bereits angehaengte Mails werden am Treffer gekennzeichnet", async () => {
 
 /* ---------------------------------------------------------------- Ticketmaske */
 
-test("faellt die Feldsteuerung aus, gilt die mildere Annahme", async () => {
-  const options = await repo({
-    "GET /api/v1/tickets/": new Error("weg"),
+test("die Feldregeln sind eine Annahme, kein Aufruf", async () => {
+  // Frueher wurde dafuer `GET /api/v1/tickets/` gerufen. Diese Route gibt es nicht -
+  // unter /api/v1/tickets sind nur POST und PUT definiert. Der Aufruf kostete bei jedem
+  // Oeffnen der Maske eine Umlaufzeit und landete zuverlaessig im Rueckfall; die Maske
+  // meldete deshalb IMMER, die Listen staemmten aus dem Rueckfall. Das war kein Ausfall,
+  // sondern ein Entwurfsfehler - und die Meldung schob ihn einer Gegenstelle zu.
+  const client = fakeClient({
+    "GET /api/v1/admin/ticketTypes": { content: [] },
     "GET /api/v1/admin/ticketStates": { content: [] },
     "GET /api/v1/employees/technicians": { content: [] },
     "GET /api/v1/employees/departments": { content: [] },
-  }).ticketOptions();
+  });
+  const options = await new TanssRepository({ client, config: {} }).ticketOptions();
+
   assert.equal(options.remitterRequired, false);
   assert.equal(options.forceAssignment, false);
-  assert.equal(options.source, "fallback");
-});
-
-test("eine Antwort ohne Feldsteuerung wird nicht als Feldsteuerung gelesen", async () => {
-  const options = await repo({
-    // Die Route antwortete wie eine gewoehnliche Ticketliste.
-    "GET /api/v1/tickets/": { content: [{ id: 1 }], meta: {} },
-    "GET /api/v1/admin/ticketStates": { content: [] },
-    "GET /api/v1/employees/technicians": { content: [] },
-    "GET /api/v1/employees/departments": { content: [] },
-  }).ticketOptions();
-  assert.equal(options.source, "fallback");
-});
-
-test("die Feldregeln der Instanz werden uebernommen, wenn es sie gibt", async () => {
-  const options = await repo({
-    "GET /api/v1/tickets/": {
-      content: {},
-      meta: {
-        properties: {
-          extras: { remitterIsAMandatoryField: true, forceAssignment: true,
-            autoAssignedEmployeeId: 12 },
-        },
-      },
-    },
-    "GET /api/v1/admin/ticketStates": { content: [] },
-    "GET /api/v1/employees/technicians": { content: [] },
-    "GET /api/v1/employees/departments": { content: [] },
-  }).ticketOptions();
-  assert.equal(options.remitterRequired, true);
-  assert.equal(options.autoAssignedEmployeeId, 12);
-  assert.equal(options.source, "properties");
+  assert.equal(options.source, "defaults");
+  assert.equal("autoAssignedEmployeeId" in options, false,
+    "das Feld kommt in TANSS nicht vor - es darf keine Vorbelegung erzeugen");
+  assert.equal(client.calls.some((c) => c.path === "/api/v1/tickets/"), false,
+    "die Route gibt es nicht; sie darf nicht mehr gerufen werden");
 });
 
 test("Status kommen sortiert und nur aktiv", async () => {
@@ -541,45 +521,6 @@ test("faellt eine Auswahlliste aus, steht der Grund in der Antwort", async () =>
   assert.ok(treffer, `kein Eintrag fuer die Technikerliste: ${JSON.stringify(options.failures)}`);
   assert.match(treffer.reason, /404/, "der HTTP-Status muss dastehen");
   assert.deepEqual(options.technicians, [], "die Liste bleibt trotzdem leer statt zu werfen");
-});
-
-test("auch der Rueckfall der Feldsteuerung nennt seinen Grund", async () => {
-  // "Die Auswahllisten stammen aus dem Rueckfall" sagte bisher nicht, ob die Route
-  // gescheitert ist oder geantwortet hat, ohne Feldsteuerung zu liefern. Das sind zwei
-  // verschiedene Ursachen mit zwei verschiedenen Suchen.
-  const client = {
-    calls: [],
-    get: async (pfad) => {
-      if (pfad === "/api/v1/tickets/") throw new ApiError("FORBIDDEN", "nein", { status: 403 });
-      return [];
-    },
-    put: async () => ({ content: {}, meta: {} }),
-    post: async () => ({}),
-    call: async () => [],
-  };
-  const options = await new TanssRepository({ client, config: {} }).ticketOptions({});
-
-  assert.equal(options.source, "fallback");
-  const treffer = options.failures.find((f) => f.path === "/api/v1/tickets/");
-  assert.ok(treffer);
-  assert.match(treffer.reason, /403/);
-});
-
-test("antwortet die Feldsteuerung ohne Regeln, wird auch das gesagt", async () => {
-  // Kein Fehler, aber auch keine Feldsteuerung. Wer das als Ausfall meldete, schickte den
-  // Administrator auf die Suche nach einem Fehler, den es nicht gibt.
-  const client = {
-    calls: [],
-    get: async () => ({}),
-    put: async () => ({ content: {}, meta: {} }),
-    post: async () => ({}),
-    call: async () => [],
-  };
-  const options = await new TanssRepository({ client, config: {} }).ticketOptions({});
-
-  const treffer = options.failures.find((f) => f.path === "/api/v1/tickets/");
-  assert.ok(treffer);
-  assert.match(treffer.reason, /ohne Feldsteuerung/);
 });
 
 test("der Grund nennt die Schnittstelle, nie den Antwortkoerper", async () => {

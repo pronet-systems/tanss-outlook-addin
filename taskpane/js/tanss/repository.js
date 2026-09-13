@@ -318,8 +318,7 @@ export class TanssRepository {
     // sieht, WARUM - ohne dass jemand ein Protokoll aufmachen muss.
     const failures = [];
 
-    const rules = await this._fieldRules(
-      { companyId, typeId, assigneeId, departmentId, failures, signal });
+    const rules = TanssRepository.FIELD_RULES;
     const [types, states, technicians, departments] = await Promise.all([
       // Neben den Ticketstatus, und aus demselben Grund erreichbar: Das "admin" im Pfad
       // ist ein Namensteil, keine Rollenforderung - diese Flaeche liegt unter derselben
@@ -364,60 +363,28 @@ export class TanssRepository {
   }
 
   /**
-   * Die Feldregeln der laufenden Instanz - nur die Regeln, nicht die Auswahllisten.
+   * Die Feldregeln - es gibt sie fuer diesen Zweck nicht, und das wird gesagt.
    *
-   * Der `linkedEntities`-Block loest ausschliesslich die Kennungen auf, die in DIESER
-   * Antwort vorkommen. Als Auswahlliste gelesen zeigte er eine willkuerliche Teilmenge,
-   * die wie eine vollstaendige Liste aussieht - bei einer Firma, deren offene Tickets
-   * alle denselben Status tragen, genau einen Status; ein neu angelegter waere nicht
-   * waehlbar.
+   * Frueher stand hier ein Aufruf von `GET /api/v1/tickets/`, aus dessen meta-Block die
+   * Kennzeichen `remitterIsAMandatoryField` und `forceAssignment` gelesen wurden. Diese
+   * Route gibt es nicht: Unter `/api/v1/tickets` sind nur POST und PUT definiert. Der
+   * Aufruf kostete bei jedem Oeffnen der Maske eine Umlaufzeit und konnte nie etwas
+   * liefern - die Maske meldete deshalb IMMER, die Listen staemmten aus dem Rueckfall.
    *
-   * Faellt die Feldsteuerung aus, gilt kein Melderzwang und keine Zuweisungspflicht.
-   * TANSS setzt diese Kennzeichen NUR, wenn sie wahr sind - ein fehlendes Kennzeichen
-   * heisst also "nicht verpflichtend" und nicht "unbekannt".
+   * Es gibt Routen, die diese Kennzeichen fuehren. Ihr Anfragekoerper kennt aber nur eine
+   * Feldauswahl und einen Zusammenhang, KEINE Firma - eine Feldsteuerung je Firma, wie
+   * die Ticketmaske sie braeuchte, laesst sich daraus nicht holen. Der Aufruf entfaellt
+   * deshalb ersatzlos.
+   *
+   * Was bleibt, ist die mildere Annahme: kein Melderzwang, keine Zuweisungspflicht. Sie
+   * ist die richtige - ein erfundener Zwang hielte den Techniker von einem gueltigen
+   * Ticket ab, waehrend eine fehlende Pflicht TANSS beim Anlegen selbst auffaellt.
+   *
+   * `autoAssignedEmployeeId` ist ersatzlos gestrichen: Das Feld kommt in TANSS nicht vor.
+   * Die Maske hat daraus eine Vorbelegung gelesen, die niemand je gesendet hat.
    */
-  async _fieldRules({ companyId, typeId, assigneeId, departmentId, failures, signal }) {
-    const mild = {
-      remitterRequired: false,
-      forceAssignment: false,
-      autoAssignedEmployeeId: null,
-      source: "fallback",
-    };
-    try {
-      const { meta } = await this.client.get("/api/v1/tickets/", {
-        query: {
-          companyId,
-          typeId,
-          assignedToEmployeeId: assigneeId,
-          assignedToDepartmentId: departmentId,
-        },
-        wantMeta: true,
-        signal,
-      });
-      const properties = (meta || {}).properties || {};
-      // Die Route hat geantwortet, aber wie eine gewoehnliche Ticketliste - ohne
-      // Feldsteuerung. Sie trotzdem als Feldsteuerung zu lesen hiesse, aus einer
-      // zufaelligen Ticketmenge Regeln abzuleiten.
-      if (!properties || Object.keys(properties).length === 0) {
-        if (failures) {
-          failures.push({
-            path: "/api/v1/tickets/",
-            reason: "geantwortet, aber ohne Feldsteuerung im meta-Block",
-          });
-        }
-        return mild;
-      }
-      const extras = properties.extras || {};
-      return {
-        remitterRequired: Boolean(extras.remitterIsAMandatoryField),
-        forceAssignment: Boolean(extras.forceAssignment),
-        autoAssignedEmployeeId: num(extras.autoAssignedEmployeeId) || null,
-        source: "properties",
-      };
-    } catch (error) {
-      if (failures) failures.push({ path: "/api/v1/tickets/", reason: reasonOf(error) });
-      return mild;
-    }
+  static get FIELD_RULES() {
+    return { remitterRequired: false, forceAssignment: false, source: "defaults" };
   }
 
   /**

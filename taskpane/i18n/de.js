@@ -191,8 +191,10 @@ export const T = deepFreeze({
     similarHint: "Vielleicht gehört diese Mail an ein bestehendes Ticket.",
     similarSwitch: "Stattdessen anhängen",
     optionsFailures: "Nicht abrufbar:",
-    optionsFallback:
-      "Die Auswahllisten stammen aus dem Rückfall: sie sind nicht nach Firma gefiltert.",
+    optionsUnfiltered:
+      "Zuweisung, Abteilung und Status sind vollständige Listen der Instanz — sie sind " +
+      "nicht nach Firma gefiltert. TANSS führt dafür keine Abfrage, die eine Firma " +
+      "entgegennimmt.",
     submit: "Ticket anlegen",
     submitting: "Ticket wird angelegt …",
     successHeading: "Ticket {id} angelegt.",
@@ -327,6 +329,10 @@ export const T = deepFreeze({
       "Die E-Mail ließ sich nicht auswerten und wurde deshalb nicht abgelegt — " +
       "sonst wäre sie in TANSS als gewöhnliches Dokument gelandet.",
     MAIL_ALREADY_ATTACHED: "Diese E-Mail hängt bereits an diesem Ticket.",
+    MAIL_EMPTY:
+      "Die Nachricht kam bei TANSS ohne Inhalt an und wurde nicht abgelegt. Das passiert " +
+      "bei einer Mail, die Outlook noch nicht vollständig heruntergeladen hat — bitte " +
+      "die Nachricht einmal öffnen und den Vorgang wiederholen.",
     MAIL_STORED_AS_DOCUMENT:
       "TANSS konnte die E-Mail nicht als Mail ablegen und hat sie als Dokument gespeichert. " +
       "In der Mailansicht des Tickets taucht sie deshalb nicht auf.",

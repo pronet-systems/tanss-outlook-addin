@@ -341,8 +341,12 @@ export async function render(ctx) {
         }),
       );
     }
-    if (state.options && state.options.source === "fallback") {
-      children.push(ui.banner({ tone: "warn", label: T.ticketNeu.optionsFallback }));
+    if (state.options && state.options.source === "defaults") {
+      // Eine Feststellung, keine Beanstandung: Die Listen sind wirklich nicht nach Firma
+      // gefiltert, und daran laesst sich nichts aendern - TANSS fuehrt dafuer keine
+      // Route, die eine Firma entgegennimmt. Frueher stand hier ein Warnton und das Wort
+      // "Rueckfall"; das schob einer Gegenstelle zu, was hier falsch gebaut war.
+      children.push(ui.banner({ tone: "info", label: T.ticketNeu.optionsUnfiltered }));
     }
 
     // Warum etwas ausgefallen ist, steht jetzt DABEI. Frueher endete der Grund in einem
@@ -762,9 +766,6 @@ export async function render(ctx) {
     if (!contains(options.states, state.statusId)) state.statusId = null;
     if (!contains(options.technicians, state.assigneeId)) state.assigneeId = null;
     if (!contains(options.departments, state.departmentId)) state.departmentId = null;
-
-    const auto = numberOrNull(options.autoAssignedEmployeeId);
-    if (state.assigneeId === null && auto !== null) state.assigneeId = auto;
 
     const defaults = ctx.me && ctx.me.defaults ? ctx.me.defaults : {};
     const fallbackType = numberOrNull(defaults.ticketTypeId);

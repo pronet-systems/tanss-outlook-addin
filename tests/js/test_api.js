@@ -21,6 +21,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { TanssRepository } from "../../taskpane/js/tanss/repository.js";
+
 import * as api from "../../taskpane/js/api.js";
 
 const API_BASE = "https://tanss.example/backend";
@@ -199,25 +201,21 @@ test("ohne Titel entsteht kein Ticket", async () => {
   assert.equal(result.error.code, "TITLE_REQUIRED");
 });
 
-test("verlangt die Firma einen Melder, wird das VOR dem Schreiben geprueft", async () => {
-  routes = {
-    ...OPTIONEN,
-    "GET /api/v1/tickets/": {
-      content: {},
-      meta: { properties: { extras: { remitterIsAMandatoryField: true } } },
-    },
-  };
-  calls.length = 0;
-
-  // Eine andere Firma: Die Feldregeln liegen je Firma im Zwischenspeicher, und der
-  // vorige Fall hat den Eintrag fuer Firma 3 bereits gefuellt.
-  const result = await api.post("api/tickets", { form: ticketForm({ companyId: 9 }) });
-  assert.equal(result.ok, false);
-  assert.equal(result.error.code, "REMITTER_REQUIRED");
-  assert.equal(calls.some((c) => c.method === "POST" && c.path === "/api/v1/tickets"), false,
-    "es darf nichts geschrieben worden sein");
+test("ohne Melderzwang laesst sich ein Ticket ohne Melder anlegen", () => {
+  // Frueher stand hier der umgekehrte Fall: Die Feldsteuerung meldete einen Melderzwang,
+  // und der Vorgang wurde vor dem Schreiben abgewiesen. Die Route, aus der dieser Zwang
+  // gelesen wurde, gibt es nicht - unter /api/v1/tickets sind nur POST und PUT definiert.
+  // Der Zwang konnte also nie greifen; die Pruefung in `validate` bleibt trotzdem stehen,
+  // weil sie zutraefe, sobald eine Quelle dafuer existiert.
+  //
+  // Was hier festgehalten wird, ist die geltende Annahme: KEIN Zwang. Sie ist die
+  // mildere - ein erfundener Zwang hielte den Techniker von einem gueltigen Ticket ab,
+  // waehrend eine fehlende Pflicht TANSS beim Anlegen selbst auffaellt.
+  assert.equal(TanssRepository.FIELD_RULES.remitterRequired, false);
+  assert.equal(TanssRepository.FIELD_RULES.forceAssignment, false);
+  assert.equal("autoAssignedEmployeeId" in TanssRepository.FIELD_RULES, false,
+    "das Feld kommt in TANSS nicht vor und darf keine Vorbelegung erzeugen");
 });
-
 test("ein Doppelklick legt kein zweites Ticket an", async () => {
   let angelegt = 0;
   routes = {
@@ -305,4 +303,43 @@ test("eine bereits angehaengte Nachricht wird gewarnt, nicht gesperrt", async ()
   const dritte = await api.post("api/tickets/500/mail", { form: erzwungen });
   assert.equal(dritte.ok, true);
   assert.equal(hochgeladen, 2);
+});
+
+test("eine leer angekommene Nachricht bekommt ihren eigenen Satz", async () => {
+  // TANSS kennt vier Zustaende je hochgeladener Datei: OK, TOO_BIG, ERROR und EMPTY. Das
+  // Pane benannte zwei; die anderen beiden fielen in "Im Dienst ist ein unerwarteter
+  // Fehler aufgetreten". "EMPTY" nennt aber eine Ursache, die der Techniker sofort
+  // versteht und selbst beheben kann - sie gehoert nicht hinter einen Sammelsatz.
+  routes = {
+    "GET /api/v1/tickets/history/500": { content: { mails: [] } },
+    "GET /api/v1/tickets/500/documents": { content: [] },
+    "POST /api/v1/tickets/500/upload": { content: [{ status: "EMPTY", name: "a.eml", size: 0 }] },
+  };
+
+  const f = new FormData();
+  f.set("eml", new Blob([""]), "a.eml");
+  f.set("internetMessageId", "<leer@example.de>");
+
+  const result = await api.post("api/tickets/500/mail", { form: f });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "MAIL_EMPTY");
+  assert.match(result.error.message, /ohne Inhalt/);
+});
+
+test("ein unbekannter Zustand faellt weiterhin auf den Sammelfall", async () => {
+  // Absicht: Ein Zustand, den wir nicht kennen, soll als unerwarteter Fehler auffallen -
+  // und nicht stillschweigend als Erfolg durchgehen.
+  routes = {
+    "GET /api/v1/tickets/history/500": { content: { mails: [] } },
+    "GET /api/v1/tickets/500/documents": { content: [] },
+    "POST /api/v1/tickets/500/upload": { content: [{ status: "WAS_AUCH_IMMER" }] },
+  };
+
+  const f = new FormData();
+  f.set("eml", new Blob(["x"]), "a.eml");
+  f.set("internetMessageId", "<neu@example.de>");
+
+  const result = await api.post("api/tickets/500/mail", { form: f });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "INTERNAL");
 });
