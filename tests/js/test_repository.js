@@ -624,3 +624,44 @@ test("nur 1 bis 9 gelten als Stufe", () => {
   assert.equal(priorityOrNull("hoch"), null);
   assert.equal(priorityOrNull(undefined), null);
 });
+
+/* -------------------------------------------------------------- Firmensuche */
+
+test("eine stillgelegte Firma wird gar nicht erst angeboten", async () => {
+  // Das Kennzeichen wurde bisher gelesen und nie benutzt - der Kommentar kuendigte eine
+  // Kennzeichnung an, die es nie gab. Ein Ticket auf eine stillgelegte Firma ist ein
+  // stiller Fehler, den erst die Rechnungsstellung findet.
+  const client = fakeClient({
+    "PUT /api/v1/search": {
+      content: {
+        companies: [
+          { id: 1, name: "Aktiv", displayId: "10023" },
+          { id: 2, name: "Stillgelegt", displayId: "10024", inactive: true },
+        ],
+      },
+      meta: {},
+    },
+  });
+  const ergebnis = await new TanssRepository({ client, config: {} }).searchCompanies("a");
+  assert.deepEqual(ergebnis.items.map((r) => r.name), ["Aktiv"]);
+});
+
+test("die Kundennummer reist mit", async () => {
+  // Ein Kunde mit mehreren Standorten fuehrt je Standort eine EIGENE Kundennummer unter
+  // demselben Namen. Ohne sie waehlt der Techniker aus gleich aussehenden Eintraegen, und
+  // das Ticket landet am falschen Standort - was niemandem auffaellt, weil der Name
+  // stimmt.
+  const client = fakeClient({
+    "PUT /api/v1/search": {
+      content: {
+        companies: [
+          { id: 1, name: "Muster GmbH", displayId: "10023", postCode: "64380", city: "Roßdorf" },
+          { id: 2, name: "Muster GmbH", displayId: "10024", postCode: "10115", city: "Berlin" },
+        ],
+      },
+      meta: {},
+    },
+  });
+  const ergebnis = await new TanssRepository({ client, config: {} }).searchCompanies("muster");
+  assert.deepEqual(ergebnis.items.map((r) => r.displayId), ["10023", "10024"]);
+});

@@ -416,8 +416,11 @@ export async function render(ctx) {
       ui.el("div", { class: "field" }, [
         ui.el("div", { class: "field-label", text: T.ticketNeu.company }),
         ui.row([
+          // Auch an der GEWAEHLTEN Firma, und das ist der wichtigere Teil: Beim Waehlen
+          // sieht man noch die ganze Liste und kann vergleichen; danach steht nur noch
+          // ein Name da, und ob es der richtige Standort war, ist nicht mehr nachzusehen.
           ui.chip({
-            label: state.company ? state.company.name : T.ticketNeu.companyUnknown,
+            label: state.company ? companyLabel(state.company) : T.ticketNeu.companyUnknown,
             title: hint,
             tone: state.company ? "strong" : "muted",
           }),
@@ -463,6 +466,11 @@ export async function render(ctx) {
         renderItem: (company) =>
           ui.listRow({
             title: company.name || String(company.id),
+            // Die Kundennummer steht als Abzeichen und damit an derselben Stelle in jeder
+            // Zeile - untereinander vergleichbar. Ein Kunde mit mehreren Standorten
+            // fuehrt je Standort eine eigene, unter demselben Namen; ohne sie waehlt man
+            // aus gleich aussehenden Eintraegen.
+            badgeLabel: company.displayId || "",
             subtitle: [company.postCode, company.city].filter(Boolean).join(" "),
             onClick: () => pickCompany(company),
           }),
@@ -484,7 +492,11 @@ export async function render(ctx) {
    * nichts anzuzeigen - es sieht wie eine Aussage ueber den neuen Kunden aus.
    */
   function pickCompany(company) {
-    state.company = { id: company.id, name: company.name || String(company.id) };
+    state.company = {
+      id: company.id,
+      name: company.name || String(company.id),
+      displayId: company.displayId || "",
+    };
     state.confidence = "none";
     state.remitter = null;
     state.similar = [];
@@ -507,6 +519,12 @@ export async function render(ctx) {
     remitterExtraBox.dataset.mode = "";
     remitterSearch.input.value = "";
     ui.clear(remitterResults);
+  }
+
+  /** Firma mit Kundennummer, sofern eine mitkam. */
+  function companyLabel(company) {
+    const name = company.name || String(company.id);
+    return company.displayId ? `${name} (${company.displayId})` : name;
   }
 
   /* -------------------------------------------------------------------- Melder */
@@ -899,17 +917,11 @@ export async function render(ctx) {
     ];
 
     if (mail.status === "attached") {
-      // Woher die Bestaetigung stammt, ist kein Detail: Bei einer Antwort ohne
-      // Ergebniszeile hat die Gegenprobe am Ticket entschieden. Der Techniker soll das
-      // wissen - und vor allem, dass er NICHT nachhelfen muss. Genau dort lag die Gefahr:
-      // Frueher stand hier ein Fehlschlag mit dem Angebot, es noch einmal zu versuchen,
-      // und eine angekommene Nachricht waere ein zweites Mal angehaengt worden.
-      children.push(ui.banner({
-        tone: "ok",
-        label: mail.confirmedBy === "check"
-          ? T.ticketNeu.successMailByCheck
-          : T.ticketNeu.successMailAttached,
-      }));
+      // Ein Satz, gleich welchen Weg die Bestaetigung genommen hat. Woher sie stammt,
+      // steht weiterhin in den Daten (`confirmedBy`) - aber es ist kein Unterschied, der
+      // den Techniker etwas angeht: Die Nachricht haengt, und in diesem Zweig gibt es
+      // ohnehin keinen Knopf zum Wiederholen, vor dem zu warnen waere.
+      children.push(ui.banner({ tone: "ok", label: T.ticketNeu.successMailAttached }));
     } else if (mail.status === "skipped") {
       children.push(ui.banner({ tone: "info", label: T.ticketNeu.successMailSkipped }));
     } else {

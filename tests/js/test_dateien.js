@@ -657,3 +657,18 @@ test("die Bausteine setzen nur zugelassene Eigenschaften", () => {
   assert.deepEqual(fundstellen, [],
     "nicht zugelassene Eigenschaft - das wirft erst zur Laufzeit, im echten Outlook");
 });
+
+test("jede Firmenliste zeigt die Kundennummer", () => {
+  // Ein Kunde mit mehreren Standorten fuehrt je Standort eine eigene Kundennummer unter
+  // demselben Namen. Eine Trefferliste ohne sie besteht aus gleich aussehenden Zeilen -
+  // und die Wahl faellt auf gut Glueck. Es gibt zwei Masken mit Firmensuche; beide
+  // muessen sie zeigen, sonst ist die eine sicher und die andere nicht.
+  for (const datei of ["ticket-neu.js", "termin.js"]) {
+    const quelle = lies(join(TASKPANE, "js", "pages", datei));
+    const anfang = quelle.indexOf("renderItem: (company)");
+    assert.ok(anfang > -1, `${datei}: keine Firmenliste gefunden`);
+    const zeile = quelle.slice(anfang, quelle.indexOf("}),", anfang));
+    assert.ok(zeile.includes("displayId"),
+      `${datei}: die Firmenliste zeigt die Kundennummer nicht`);
+  }
+});

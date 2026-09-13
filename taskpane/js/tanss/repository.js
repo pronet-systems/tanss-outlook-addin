@@ -175,7 +175,15 @@ export class TanssRepository {
       }),
       { retry: true, wantMeta: true, signal },
     );
-    const items = ((content || {}).companies || []).map(companyRow);
+    // Stillgelegte Firmen werden nicht angeboten. Das Kennzeichen wurde bisher gelesen
+    // und nie benutzt: Ein Ticket auf eine stillgelegte Firma ist ein stiller Fehler, den
+    // erst die Rechnungsstellung findet - und die Maske bot sie an wie jede andere.
+    //
+    // Gefiltert wird HIER und nicht in der Maske: Das ist die einzige Tuer, durch die eine
+    // Firma in einen Entwurf gelangt, und es gibt zwei Masken, die sie benutzen.
+    const items = ((content || {}).companies || [])
+      .map(companyRow)
+      .filter((row) => !row.inactive);
     return { items, tooMany: tooMany(meta) };
   }
 

@@ -420,6 +420,9 @@ export async function render(ctx) {
         renderItem: (company) =>
           ui.listRow({
             title: company.name || String(company.id),
+            // Wie in der Ticketmaske: Ein Kunde mit mehreren Standorten fuehrt je
+            // Standort eine eigene Kundennummer unter demselben Namen.
+            badgeLabel: company.displayId || "",
             subtitle: [company.postCode, company.city].filter(Boolean).join(" "),
             onClick: () => {
               state.companyId = numberOrNull(company.id);
