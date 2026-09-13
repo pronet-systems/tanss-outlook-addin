@@ -154,7 +154,6 @@ test("die Feldregeln sind eine Annahme, kein Aufruf", async () => {
 
   assert.equal(options.remitterRequired, false);
   assert.equal(options.forceAssignment, false);
-  assert.equal(options.source, "defaults");
   assert.equal("autoAssignedEmployeeId" in options, false,
     "das Feld kommt in TANSS nicht vor - es darf keine Vorbelegung erzeugen");
   assert.equal(client.calls.some((c) => c.path === "/api/v1/tickets/"), false,

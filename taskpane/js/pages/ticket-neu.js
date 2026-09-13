@@ -341,14 +341,6 @@ export async function render(ctx) {
         }),
       );
     }
-    if (state.options && state.options.source === "defaults") {
-      // Eine Feststellung, keine Beanstandung: Die Listen sind wirklich nicht nach Firma
-      // gefiltert, und daran laesst sich nichts aendern - TANSS fuehrt dafuer keine
-      // Route, die eine Firma entgegennimmt. Frueher stand hier ein Warnton und das Wort
-      // "Rueckfall"; das schob einer Gegenstelle zu, was hier falsch gebaut war.
-      children.push(ui.banner({ tone: "info", label: T.ticketNeu.optionsUnfiltered }));
-    }
-
     // Warum etwas ausgefallen ist, steht jetzt DABEI. Frueher endete der Grund in einem
     // leeren `catch`, und die Meldung sagte nur, DASS eine Liste fehlt - der
     // Administrator fing bei null an, obwohl der Grund im Augenblick des Scheiterns

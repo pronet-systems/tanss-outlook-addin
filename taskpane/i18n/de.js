@@ -191,10 +191,6 @@ export const T = deepFreeze({
     similarHint: "Vielleicht gehört diese Mail an ein bestehendes Ticket.",
     similarSwitch: "Stattdessen anhängen",
     optionsFailures: "Nicht abrufbar:",
-    optionsUnfiltered:
-      "Zuweisung, Abteilung und Status sind vollständige Listen der Instanz — sie sind " +
-      "nicht nach Firma gefiltert. TANSS führt dafür keine Abfrage, die eine Firma " +
-      "entgegennimmt.",
     submit: "Ticket anlegen",
     submitting: "Ticket wird angelegt …",
     successHeading: "Ticket {id} angelegt.",

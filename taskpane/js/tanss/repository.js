@@ -355,7 +355,6 @@ export class TanssRepository {
       technicians,
       departments,
       ...rules,
-      source: rules.source,
       failures,
     };
     this._options.put(key, options);
@@ -384,7 +383,7 @@ export class TanssRepository {
    * Die Maske hat daraus eine Vorbelegung gelesen, die niemand je gesendet hat.
    */
   static get FIELD_RULES() {
-    return { remitterRequired: false, forceAssignment: false, source: "defaults" };
+    return { remitterRequired: false, forceAssignment: false };
   }
 
   /**
