@@ -471,12 +471,8 @@ export async function render(ctx) {
             // fuehrt je Standort eine eigene, unter demselben Namen; ohne sie waehlt man
             // aus gleich aussehenden Eintraegen.
             badgeLabel: company.displayId || "",
-            // Zentrale oder Filiale steht in der Unterzeile, nicht als zweites Abzeichen:
-            // Die Nummer UNTERSCHEIDET die Standorte, diese Angabe BENENNT sie. Zwei
-            // Abzeichen nebeneinander waeren zwei Dinge von gleichem Gewicht - sie sind
-            // es nicht.
-            subtitle: [companyKind(company), company.postCode, company.city]
-              .filter(Boolean).join(" · "),
+            tag: companyTag(company),
+            subtitle: [company.postCode, company.city].filter(Boolean).join(" "),
             onClick: () => pickCompany(company),
           }),
       }),
@@ -527,17 +523,23 @@ export async function render(ctx) {
   }
 
   /**
-   * Zentrale oder Filiale - oder nichts.
+   * Zentrale oder Filiale als farbiges Abzeichen - oder gar keines.
    *
    * TANSS kennt drei Zustaende, und der dritte ist der haeufigste: Die meisten Firmen sind
-   * weder das eine noch das andere. Fuer sie steht hier nichts, statt sie mit "keine
-   * Angabe" zu beschriften - eine Zeile, die bei fast allen Treffern dasselbe sagt, macht
-   * die wenigen unkenntlich, bei denen es darauf ankommt.
+   * weder das eine noch das andere. Fuer sie entsteht kein Abzeichen, statt eines mit
+   * "keine Angabe" - ein Merkmal, das bei fast allen Treffern dasselbe sagt, macht die
+   * wenigen unkenntlich, bei denen es darauf ankommt.
+   *
+   * Die Farben bewerten nicht: Weder Zentrale noch Filiale ist besser als das andere.
    */
-  function companyKind(company) {
-    if (company.centralType === "CENTRAL") return T.ticketNeu.companyCentral;
-    if (company.centralType === "BRANCH") return T.ticketNeu.companyBranch;
-    return "";
+  function companyTag(company) {
+    if (company.centralType === "CENTRAL") {
+      return { label: T.ticketNeu.companyCentral, tone: "accent" };
+    }
+    if (company.centralType === "BRANCH") {
+      return { label: T.ticketNeu.companyBranch, tone: "muted" };
+    }
+    return null;
   }
 
   /** Firma mit Kundennummer, sofern eine mitkam. */

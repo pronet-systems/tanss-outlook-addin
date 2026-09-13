@@ -423,12 +423,12 @@ export async function render(ctx) {
             // Wie in der Ticketmaske: Ein Kunde mit mehreren Standorten fuehrt je
             // Standort eine eigene Kundennummer unter demselben Namen.
             badgeLabel: company.displayId || "",
-            subtitle: [
-              company.centralType === "CENTRAL" ? T.ticketNeu.companyCentral : "",
-              company.centralType === "BRANCH" ? T.ticketNeu.companyBranch : "",
-              company.postCode,
-              company.city,
-            ].filter(Boolean).join(" · "),
+            tag: company.centralType === "CENTRAL"
+              ? { label: T.ticketNeu.companyCentral, tone: "accent" }
+              : (company.centralType === "BRANCH"
+                ? { label: T.ticketNeu.companyBranch, tone: "muted" }
+                : null),
+            subtitle: [company.postCode, company.city].filter(Boolean).join(" "),
             onClick: () => {
               state.companyId = numberOrNull(company.id);
               state.companyName = company.name || "";

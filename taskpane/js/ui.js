@@ -334,7 +334,17 @@ export function list({ items, renderItem, emptyLabel = T.app.noResults }) {
 }
 
 /** Eine anklickbare Zeile: Titel, Nebenzeile, optionale Marke rechts. */
-export function listRow({ title, subtitle = "", badgeLabel = "", onClick = null, selected = false }) {
+/**
+ * Eine Zeile einer Trefferliste.
+ *
+ * `tag` ist ein ZWEITES Abzeichen und tritt bewusst vor das erste. Zwei gleich aussehende
+ * Abzeichen nebeneinander waeren zwei Dinge von gleichem Gewicht - deshalb traegt `tag`
+ * eine Farbe und `badgeLabel` bleibt schlicht: Das eine benennt eine Art, das andere ist
+ * eine Kennung. Wer beides gleich auszeichnet, zwingt zum Lesen, wo ein Blick genuegen
+ * sollte.
+ */
+export function listRow({ title, subtitle = "", badgeLabel = "", tag = null,
+  onClick = null, selected = false }) {
   return el(
     "button",
     {
@@ -347,6 +357,7 @@ export function listRow({ title, subtitle = "", badgeLabel = "", onClick = null,
         el("span", { class: "row-title", text: title }),
         subtitle ? el("span", { class: "row-sub", text: subtitle }) : null,
       ]),
+      tag && tag.label ? badge({ label: tag.label, tone: tag.tone || "" }) : null,
       badgeLabel ? badge({ label: badgeLabel }) : null,
     ],
   );

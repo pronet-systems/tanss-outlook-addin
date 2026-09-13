@@ -670,6 +670,26 @@ test("jede Firmenliste zeigt die Kundennummer", () => {
     const zeile = quelle.slice(anfang, quelle.indexOf("}),", anfang));
     assert.ok(zeile.includes("displayId"),
       `${datei}: die Firmenliste zeigt die Kundennummer nicht`);
+    assert.ok(/tag:/.test(zeile),
+      `${datei}: die Firmenliste kennzeichnet Zentrale und Filiale nicht`);
+  }
+});
+
+test("die Abzeichenfarben der Firmenart bewerten nicht", () => {
+  // Weder "Zentrale" noch "Filiale" ist besser als das andere. Gruen und Gelb sind in
+  // diesem Pane fuer gelungen und beanstandet vergeben - hier gelesen, hiessen sie
+  // richtig und falsch, und das waere eine Aussage, die niemand treffen wollte.
+  const stil = lies(join(TASKPANE, "app.css"));
+  assert.ok(stil.includes(".badge--accent"), "der Ton fuer die Zentrale fehlt");
+  assert.ok(stil.includes(".badge--muted"), "der Ton fuer die Filiale fehlt");
+
+  for (const datei of ["ticket-neu.js", "termin.js"]) {
+    const quelle = ohneKommentare(join(TASKPANE, "js", "pages", datei));
+    const stellen = [...quelle.matchAll(/company(Central|Branch)[^}]*tone:\s*"(\w+)"/g)];
+    for (const [, , ton] of stellen) {
+      assert.ok(["accent", "muted"].includes(ton),
+        `${datei}: die Firmenart traegt einen wertenden Ton (${ton})`);
+    }
   }
 });
 

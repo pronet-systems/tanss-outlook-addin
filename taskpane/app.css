@@ -353,6 +353,21 @@ body {
   color: var(--ok);
 }
 
+/* Zwei Arten, keine Bewertung: Weder "Zentrale" noch "Filiale" ist besser als das andere.
+   Deshalb NICHT gruen oder gelb - das las sich wie richtig und falsch. Die Zentrale traegt
+   die Akzentfarbe, die Filiale bleibt gedaempft; der Unterschied ist sichtbar, ohne eine
+   Rangfolge zu behaupten. */
+.badge--accent {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.badge--muted {
+  background: transparent;
+  border-style: dashed;
+}
+
 .kv {
   margin: 0;
   display: grid;
