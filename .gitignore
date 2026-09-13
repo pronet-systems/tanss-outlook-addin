@@ -43,3 +43,7 @@ Thumbs.db
 # Bauartefakte des Manifest-Generators
 tools/ManifestGenerator/bin/
 tools/ManifestGenerator/obj/
+
+# Oertliches Arbeitsmaterial zur TANSS-Schnittstelle. Es gehoert nicht zum Erzeugnis,
+# ist gross und steht unter fremder Lizenz - es darf dieses Repository nie verlassen.
+reference/
