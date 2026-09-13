@@ -54,11 +54,6 @@ Aufklappmenü; darin stehen *Ticket erstellen* und *An Ticket anhängen*. Im Ter
 Organisators erscheint eine zweite Schaltfläche. Alle Einstiege öffnen dasselbe Taskpane
 auf einer eigenen Seite.
 
-> Warum ein Menü und nicht zwei Schaltflächen: Das Menüband einer Mailansicht ist voll.
-> Bei zwei Schaltflächen klappt Outlook als erstes die Beschriftungen weg, und es stehen
-> zwei fast gleiche Symbole nebeneinander, die niemand auseinanderhält. Im Menü steht
-> jeder Vorgang ausgeschrieben da — und die beiden Einträge tragen eigene Symbole.
-
 **E-Mail an ein bestehendes Ticket hängen.** Der häufigste Fall: Acht Nachrichten
 gehören zu einem Vorgang, nicht zu acht Tickets. Das Taskpane sucht Tickets über Nummer
 oder Titel, bietet zuletzt verwendete an und legt die geöffnete Nachricht mit allen
