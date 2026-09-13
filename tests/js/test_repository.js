@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 
 import { TanssRepository, departmentRow, isFreshEmlDocument, shapeOf } from "../../taskpane/js/tanss/repository.js";
 import { ApiError, reasonOf } from "../../taskpane/js/tanss/errors.js";
+import { priorityOrNull, ticketWrite } from "../../taskpane/js/tanss/models.js";
 
 /** Ein Client, der Aufrufe aufzeichnet und vorbereitete Antworten liefert. */
 function fakeClient(routes) {
@@ -625,4 +626,32 @@ test("die Abteilungsliste kommt mit Belegschaft aus der Sammelabfrage", async ()
   });
   const options = await new TanssRepository({ client, config: {} }).ticketOptions();
   assert.deepEqual(options.departments.map((d) => d.employeeIds), [[5], [5, 9], [9]]);
+});
+
+/* ------------------------------------------------------------- Prioritaet */
+
+test("ohne Auswahl geht die Prioritaet gar nicht mit", () => {
+  // Dann setzt TANSS seine eigene, je Instanz eingestellte Vorgabe. Eine hier gewaehlte
+  // Zahl waere eine Behauptung ueber eine fremde Einstellung.
+  const body = ticketWrite({ companyId: 3, title: "x", priority: null });
+  assert.equal("priority" in body, false);
+});
+
+test("eine gewaehlte Stufe geht unter dem Namen mit, den TANSS liest", () => {
+  // `priority`, nicht `priorityId`. Ein falscher Name wuerde still verworfen, und das
+  // Pane meldete eine Dringlichkeit, die es am Ticket nicht gibt.
+  assert.equal(ticketWrite({ companyId: 3, title: "x", priority: 7 }).priority, 7);
+});
+
+test("nur 1 bis 9 gelten als Stufe", () => {
+  // Die Grenzen stehen im Pane, weil TANSS sie auf diesem Weg NICHT prueft: Ein Wert wie
+  // 12 oder -1 landete ungeprueft in der Spalte.
+  assert.equal(priorityOrNull(1), 1);
+  assert.equal(priorityOrNull(9), 9);
+  assert.equal(priorityOrNull(0), null, "0 heisst: keine Angabe");
+  assert.equal(priorityOrNull(10), null);
+  assert.equal(priorityOrNull(-1), null);
+  assert.equal(priorityOrNull("5"), 5);
+  assert.equal(priorityOrNull("hoch"), null);
+  assert.equal(priorityOrNull(undefined), null);
 });

@@ -36,6 +36,18 @@ const TITLE_MAX = 100;
  * partitioniert oder gesperrt und roamt nicht zwischen Geraeten.
  */
 const PREF_TYPE = "ticketTypeId";
+
+/**
+ * Die Stufen der Ticketprioritaet, wie TANSS sie zeigt: Ziffer und ebenso viele Sterne.
+ *
+ * Keine Worte. "hoch", "dringend" oder "niedrig" waeren eine Behauptung ueber eine
+ * Richtung, die die Schnittstelle nicht hergibt - und eine verkehrt herum eingebaute
+ * Skala setzte jedes dringende Ticket auf die falsche Stufe, ohne dass es auffiele.
+ */
+const PRIORITIES = Array.from({ length: 9 }, (unused, index) => {
+  const stufe = index + 1;
+  return { value: stufe, label: `${stufe} (${"*".repeat(stufe)})` };
+});
 const PREF_STATUS = "ticketStatusId";
 const PREF_ASSIGNEE = "assignedToEmployeeId";
 const PREF_DEPARTMENT = "assignedToDepartmentId";
@@ -245,6 +257,10 @@ export async function render(ctx) {
     attachMail: true,
     internal: false,
     typeId: numberOrNull(prefs[PREF_TYPE]),
+    // Nicht gemerkt: Die Prioritaet gehoert zum einzelnen Vorgang, nicht zur Gewohnheit.
+    // Ein vor Wochen gewaehlter Wert stillschweigend wieder einzusetzen hiesse, jedem
+    // Ticket eine Dringlichkeit mitzugeben, die niemand fuer dieses Ticket gewaehlt hat.
+    priority: null,
     statusId: numberOrNull(prefs[PREF_STATUS]),
     assigneeId: numberOrNull(prefs[PREF_ASSIGNEE]),
     departmentId: numberOrNull(prefs[PREF_DEPARTMENT]),
@@ -783,6 +799,20 @@ export async function render(ctx) {
         void loadOptions();
       },
     });
+    // Ziffer und Sterne, kein einziges Wort - genau so zeigt TANSS es selbst. Ob 1 oder
+    // 9 "hoch" bedeutet, geht aus der Schnittstelle NICHT hervor: Verglichen wird
+    // nirgends groesser/kleiner, und die einzige Richtungsangabe der Dokumentation
+    // gehoert dem Rueckruf, nicht dem Ticket. Wer keine Richtung behauptet, kann sie
+    // nicht verkehrt herum behaupten; die Sterne bilden die Zahl ab, sie deuten sie nicht.
+    const prioritySelect = ui.select({
+      options: PRIORITIES,
+      value: state.priority,
+      placeholder: T.ticketNeu.priorityDefault,
+      onChange: () => {
+        state.priority = numberOrNull(prioritySelect.value);
+        markDirty();
+      },
+    });
     const statusSelect = ui.select({
       options: toSelectOptions(options.states),
       value: state.statusId,
@@ -825,6 +855,7 @@ export async function render(ctx) {
       optionsBox,
       typeSelect ? ui.field({ label: T.ticketNeu.type, control: typeSelect }) : null,
       ui.field({ label: T.ticketNeu.status, control: statusSelect }),
+      ui.field({ label: T.ticketNeu.priority, control: prioritySelect }),
       ui.field({
         label: T.ticketNeu.assignee,
         control: assigneeSelect,
@@ -914,6 +945,7 @@ export async function render(ctx) {
         title,
         content: state.content,
         typeId: state.typeId,
+        priority: state.priority,
         statusId: state.statusId,
         assignedToEmployeeId: state.assigneeId,
         assignedToDepartmentId: state.departmentId,

@@ -105,12 +105,33 @@ export function ticketWrite(draft) {
     statusId: draft.statusId,
     assignedToEmployeeId: draft.assignedToEmployeeId,
     assignedToDepartmentId: draft.assignedToDepartmentId,
+    // Der Draht-Name ist `priority`. Ohne Auswahl geht das Feld GAR NICHT mit: Der Server
+    // setzt dann seine eigene, je Instanz eingestellte Vorgabe. Eine 0 zu senden waere
+    // gleichbedeutend, aber eine hier gewaehlte Zahl waere eine Behauptung ueber eine
+    // fremde Einstellung.
+    priority: draft.priority,
   });
   if (draft.linkTypeId && draft.linkId) {
     body.linkTypeId = draft.linkTypeId;
     body.linkId = draft.linkId;
   }
   return body;
+}
+
+/**
+ * Die zulaessigen Stufen der Ticketprioritaet - 1 bis 9, sonst nichts.
+ *
+ * Die Grenzen stehen hier, weil TANSS sie auf dem Weg ueber die Schnittstelle NICHT
+ * prueft: Ein Wert wie 12 oder -1 landete ungeprueft in der Spalte. Geprueft wird er nur
+ * auf einem anderen Weg in TANSS, und darauf ist kein Verlass.
+ */
+export const PRIORITY_MIN = 1;
+export const PRIORITY_MAX = 9;
+
+/** Eine Stufe, oder `null`. Alles ausserhalb 1..9 gilt als keine Angabe. */
+export function priorityOrNull(value) {
+  const stufe = num(value);
+  return stufe >= PRIORITY_MIN && stufe <= PRIORITY_MAX ? stufe : null;
 }
 
 /**

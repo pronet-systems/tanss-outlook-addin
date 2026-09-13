@@ -619,3 +619,18 @@ test("die Ticketliste wird nie per GET gerufen", () => {
   assert.ok(!/client\.get\(\s*["'`]\/api\/v1\/tickets\/["'`]/.test(quelle),
     "GET auf /api/v1/tickets/ - diese Route gibt es nicht");
 });
+
+test("die Prioritaetsstufen tragen keine Worte", () => {
+  // Ob 1 oder 9 "hoch" bedeutet, geht aus der TANSS-Schnittstelle nicht hervor: Verglichen
+  // wird nirgends groesser/kleiner, und die einzige Richtungsangabe der Dokumentation
+  // gehoert dem Rueckruf, nicht dem Ticket. Eine Beschriftung wie "hoch" oder "niedrig"
+  // waere deshalb eine Behauptung - und eine verkehrt herum eingebaute Skala setzte jedes
+  // dringende Ticket auf die falsche Stufe, ohne dass es auffiele.
+  const quelle = lies(join(TASKPANE, "js", "pages", "ticket-neu.js"));
+  const block = quelle.slice(quelle.indexOf("const PRIORITIES"), quelle.indexOf("});", quelle.indexOf("const PRIORITIES")));
+
+  for (const wort of ["hoch", "niedrig", "dringend", "kritisch", "normal", "sofort"]) {
+    assert.ok(!new RegExp(wort, "i").test(block),
+      `Die Prioritaetsliste behauptet eine Richtung: "${wort}"`);
+  }
+});

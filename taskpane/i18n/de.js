@@ -183,6 +183,8 @@ export const T = deepFreeze({
     quotedHide: "Zitierten Verlauf ausblenden",
     type: "Tickettyp",
     status: "Status",
+    priority: "Priorität",
+    priorityDefault: "— Vorgabe von TANSS —",
     assignee: "Zuweisung",
     department: "Abteilung",
     departmentNeedsAssignee: "— erst Zuweisung wählen —",

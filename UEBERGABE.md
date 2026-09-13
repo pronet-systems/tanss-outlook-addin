@@ -122,6 +122,26 @@ Nichts davon ist Annahme.
 | `_host_Info` bei Adresse mit Parametern **und** Anker | Kommt im Abfrageteil an: `Outlook$Win32$16.02$de-DE$$$$0` — der Anker schadet nicht |
 | Skript-Ursprünge, die office.js wirklich braucht | Zwei: der eigene **und** `ajax.aspnetcdn.com` — siehe unten |
 | Welche TANSS-Flächen das Anmeldetoken eines Technikers erreicht | Nur `/api/v1/**`, einschließlich `/api/v1/admin/**`. **Nicht** `/api/tanss.x/v1/**` und **nicht** `/api/erp/v1/**` |
+| Ticketpriorität | Ganzzahl 1–9 am Ticket, Feldname `priority`. Keine Tabelle, keine Namen — TANSS beschriftet mit der Ziffer. `0` beim Speichern ⇒ der Server setzt seine konfigurierte Vorgabe |
+| Abteilungszugehörigkeit eines Technikers | Steht an der **Abteilung** (`employeeIds`), nicht am Mitarbeiter — dort führt TANSS nur die primäre |
+
+### Die Richtung der Ticketpriorität ist unbekannt — und bleibt es
+
+Die Skala geht von 1 bis 9. Ob **1 oder 9 „hoch" bedeutet, geht aus nichts hervor**: Im
+gesamten TANSS-Bestand wird die Priorität nirgends größer/kleiner verglichen, sondern nur
+über Mengenzugehörigkeit; es gibt keinen Schwellenwert und keine Sortierung. Die einzige
+Richtungsangabe der API-Dokumentation — *„priority of the callback from 1 (lowest) to 9
+(highest)"* — gehört dem **Rückruf**, nicht dem Ticket.
+
+Deshalb zeigt das Pane Ziffer und Sterne, so wie TANSS es selbst tut, und **kein einziges
+Wort**. Wer keine Richtung behauptet, kann sie nicht verkehrt herum behaupten — und eine
+verkehrt herum eingebaute Skala setzte jedes dringende Ticket auf die falsche Stufe, ohne
+dass es auffiele. Ein Wächter hält Wörter wie „hoch" und „dringend" aus der Liste heraus.
+
+Wer die Richtung belegen will, liest sie an einem echten Bestand ab — nicht an dieser
+Dokumentation.
+
+---
 
 ### Die Rolle entscheidet, nicht nur die Route
 

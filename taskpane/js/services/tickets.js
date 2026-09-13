@@ -13,6 +13,7 @@
  */
 
 import { ApiError } from "../tanss/errors.js";
+import { priorityOrNull } from "../tanss/models.js";
 import { repository, settings, store } from "../runtime.js";
 import { titleFromSubject } from "../text.js";
 
@@ -373,6 +374,9 @@ function readTicket(form) {
     statusId: Number(body.statusId) || 0,
     assignedToEmployeeId: Number(body.assignedToEmployeeId) || 0,
     assignedToDepartmentId: Number(body.assignedToDepartmentId) || 0,
+    // `null` heisst: nicht mitsenden. Dann setzt TANSS seine eigene Vorgabe - die ist je
+    // Instanz eingestellt und gehoert nicht hierher.
+    priority: priorityOrNull(body.priority),
   };
   if (draft.companyId) {
     draft.linkTypeId = 2;
