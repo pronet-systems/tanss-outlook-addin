@@ -119,11 +119,11 @@ const DEFAULTS = {
    * Sie stehen in der Konfiguration und nicht in einer Abfrage, weil TANSS keine Route
    * fuehrt, die sie vollstaendig und ungefiltert liefert.
    *
-   * Auf einer gemeinsam genutzten Ablage nuetzt dieser Schluessel allerdings nichts: Dort
-   * ist die `config.json` fuer alle Kunden dieselbe und laesst ihn leer. Tickettypen sind
-   * aber kundenspezifisch - sie nehmen deshalb denselben Weg wie die TANSS-Adresse und
-   * die Anwendungs-Id, naemlich ueber die Seitenadresse im Manifest. Siehe
-   * `applyTicketTypes`.
+   * NUR ein Rueckfall. Geholt werden die Typen aus TANSS selbst; dieser Schluessel gilt
+   * erst, wenn die Adminroute nichts liefert - fuer eine Installation, die sie nicht
+   * fuehrt. In das Manifest gehoeren sie ausdruecklich NICHT: Ein dort eingetragener Typ
+   * altert, und ein in TANSS neu angelegter oder umbenannter kaeme nie an, ohne dass
+   * jemand ein Manifest erzeugt, die Version erhoeht und neu ausrollt.
    *
    * Bleibt die Liste leer, zeigt die Ticketmaske kein Typfeld. Das ist zulaessig, denn
    * ein Ticket ohne Typ nimmt TANSS an.
@@ -195,7 +195,6 @@ export async function load() {
 
   applyApiBase(merged);
   applyEntraClientId(merged);
-  applyTicketTypes(merged);
   if (!merged.instance) merged.instance = deriveInstance(merged);
   current = merged;
   return current;
@@ -284,40 +283,6 @@ function applyEntraClientId(merged) {
   const ausDerAdresse = readQueryParam("entra");
   const kandidat = ausDerAdresse || merged.entra.clientId || "";
   merged.entra.clientId = isClientId(kandidat) ? kandidat : "";
-}
-
-/**
- * Die Tickettypen aus der Seitenadresse - der einzige Weg, der auf einer gemeinsam
- * genutzten Ablage traegt.
- *
- * Form: `typen=1:Stoerung,2:Anfrage`. Kennung und Name durch Doppelpunkt getrennt,
- * Eintraege durch Komma. Der Name darf Doppelpunkte enthalten - getrennt wird am ERSTEN
- * -, aber kein Komma; der Generator laesst keines durch.
- *
- * Was nicht lesbar ist, wird still uebergangen und nicht zu einem halben Eintrag
- * gemacht: Ein Tickettyp ohne Kennung waere in der Auswahlliste sichtbar und beim
- * Anlegen wirkungslos - der Techniker waehlte etwas aus, das nichts tut.
- *
- * Die Adresse sticht die Datei. Beides gleichzeitig gibt es nur, wenn jemand eine eigene
- * Ablage betreibt UND ein Manifest mit Typen einspielt; dann gilt das Manifest, weil es
- * vom Administrator des Mandanten stammt und damit verwaltet ist.
- */
-function applyTicketTypes(merged) {
-  const roh = readQueryParam("typen");
-  if (!roh) return;
-
-  const gelesen = [];
-  for (const stueck of roh.split(",")) {
-    const trenner = stueck.indexOf(":");
-    if (trenner < 1) continue;
-    const id = Number(stueck.slice(0, trenner).trim());
-    const name = stueck.slice(trenner + 1).trim();
-    if (!Number.isInteger(id) || id <= 0 || name === "") continue;
-    if (gelesen.some((eintrag) => eintrag.id === id)) continue;
-    gelesen.push({ id, name });
-  }
-
-  if (gelesen.length > 0) merged.ticketTypes = gelesen;
 }
 
 /** Sieht das wie eine Anwendungs-Id aus? */

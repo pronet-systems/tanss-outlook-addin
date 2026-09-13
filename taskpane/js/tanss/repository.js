@@ -310,7 +310,15 @@ export class TanssRepository {
 
     const rules = await this._fieldRules(
       { companyId, typeId, assigneeId, departmentId, failures, signal });
-    const [states, technicians, departments] = await Promise.all([
+    const [types, states, technicians, departments] = await Promise.all([
+      // Dieselbe Adminroute-Form wie bei den Status, und dasselbe Verhalten bei Ausfall.
+      // Die Typen gehoeren NICHT in das Manifest: Ein dort eingetragener Typ altert - ein
+      // in TANSS neu angelegter oder umbenannter kaeme nie an, ohne dass jemand ein
+      // Manifest erzeugt, die Version erhoeht und neu ausrollt.
+      this._list("/api/v1/admin/ticketTypes", signal, (raw) => raw
+        .filter((item) => item && item.id && item.active !== false)
+        .sort((a, b) => num(a.rank) - num(b.rank))
+        .map(namedId), failures),
       this._list("/api/v1/admin/ticketStates", signal, (raw) => raw
         .filter((item) => item && item.id && item.active !== false)
         .sort((a, b) => num(a.rank) - num(b.rank))
@@ -322,7 +330,11 @@ export class TanssRepository {
     ]);
 
     const options = {
-      types: this.config.ticketTypes || [],
+      // Die API sticht die Konfiguration. Der Schluessel in der config.json bleibt als
+      // Rueckfall fuer eine Installation, deren TANSS die Adminroute nicht fuehrt - genau
+      // so, wie `defaults.supportTypeId` fuer die Leistungsarten einspringt. Auf der
+      // gemeinsam genutzten Ablage ist er leer und bleibt es; dort traegt allein die API.
+      types: types.length > 0 ? types : (this.config.ticketTypes || []),
       states,
       technicians,
       departments,

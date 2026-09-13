@@ -590,3 +590,62 @@ test("der Grund nennt die Schnittstelle, nie den Antwortkoerper", async () => {
   assert.equal(reasonOf(new TypeError("Failed to fetch")), "TypeError: Failed to fetch");
   assert.equal(reasonOf(null), "ohne Angabe");
 });
+
+test("die Tickettypen kommen aus TANSS, nicht aus der Konfiguration", async () => {
+  // Sie duerfen NICHT im Manifest stehen: Ein dort eingetragener Typ altert. Ein in TANSS
+  // neu angelegter oder umbenannter kaeme nie an, ohne dass jemand ein Manifest erzeugt,
+  // die Version erhoeht und neu ausrollt - und bis das bei allen Benutzern ankommt,
+  // vergehen bis zu 72 Stunden.
+  const client = {
+    calls: [],
+    get: async (pfad) => (pfad === "/api/v1/admin/ticketTypes"
+      ? [{ id: 2, name: "Anfrage", rank: 2 }, { id: 1, name: "Störung", rank: 1 }]
+      : []),
+    put: async () => ({ content: {}, meta: {} }),
+    post: async () => ({}),
+    call: async () => [],
+  };
+  const options = await new TanssRepository({
+    client,
+    config: { ticketTypes: [{ id: 9, name: "Aus der Datei" }] },
+  }).ticketOptions({});
+
+  assert.deepEqual(options.types, [{ id: 1, name: "Störung" }, { id: 2, name: "Anfrage" }],
+    "die API sticht die Konfiguration, und die Reihenfolge folgt dem Rang");
+});
+
+test("faellt die Typenroute aus, springt die Konfiguration ein und der Grund steht da", async () => {
+  // Der Rueckfall ist fuer eine Installation gedacht, deren TANSS die Adminroute nicht
+  // fuehrt - genau so, wie `defaults.supportTypeId` fuer die Leistungsarten einspringt.
+  const client = {
+    calls: [],
+    get: async (pfad) => {
+      if (pfad === "/api/v1/admin/ticketTypes") throw new ApiError("INTERNAL", "weg", { status: 404 });
+      return [];
+    },
+    put: async () => ({ content: {}, meta: {} }),
+    post: async () => ({}),
+    call: async () => [],
+  };
+  const options = await new TanssRepository({
+    client,
+    config: { ticketTypes: [{ id: 9, name: "Aus der Datei" }] },
+  }).ticketOptions({});
+
+  assert.deepEqual(options.types, [{ id: 9, name: "Aus der Datei" }]);
+  assert.ok(options.failures.some((f) => f.path === "/api/v1/admin/ticketTypes" && /404/.test(f.reason)));
+});
+
+test("ohne Route und ohne Konfiguration bleibt die Typenliste leer", async () => {
+  // Dann verschwindet das Feld in der Maske. Ein Auswahlfeld ohne Auswahl sieht nach
+  // einem Ausfall aus, und TANSS nimmt ein Ticket ohne Typ an.
+  const client = {
+    calls: [],
+    get: async () => [],
+    put: async () => ({ content: {}, meta: {} }),
+    post: async () => ({}),
+    call: async () => [],
+  };
+  const options = await new TanssRepository({ client, config: {} }).ticketOptions({});
+  assert.deepEqual(options.types, []);
+});

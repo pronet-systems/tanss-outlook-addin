@@ -302,7 +302,6 @@ Auszufüllen ist im Grunde **ein** Feld:
 | **Add-in-Kennung** | Wird berechnet, nicht eingegeben. |
 | *Weitere Angaben* → **Entra-Anwendungs-Id** | Die GUID aus Schritt 1. Leer lassen, wenn Sie Schritt 1 übersprungen haben. |
 | *Weitere Angaben* → **Mandant** | Ihre Microsoft-365-Domäne, z. B. `ihre-firma.de`. Steht **nicht** im Manifest und ändert am Add-in nichts — der Prüflauf braucht sie, um die Entra-Anwendung überhaupt nachschlagen zu können. |
-| *Weitere Angaben* → **Tickettypen** | Eine Zeile je Typ, `1=Störung`. Die Kennung steht in TANSS am Tickettyp. Leer lassen, wenn die Ticketmaske kein Typfeld zeigen soll. |
 | *Weitere Angaben* → **Support-Adresse** | Wohin sich Ihre Techniker wenden, wenn das Add-in Ärger macht — Ihr eigener Servicedesk. Outlook und das Admin Center bieten sie als Hilfe an. |
 
 Die **Add-in-Kennung** wird aus der TANSS-Adresse berechnet, nicht gewürfelt: Dieselbe
@@ -466,12 +465,16 @@ reisen deshalb mit:
 |---|---|---|
 | `tanss` | TANSS-API | Gegen welche Instanz gearbeitet wird |
 | `entra` | Entra-Anwendungs-Id | Die Nachricht im Original statt als Rekonstruktion |
-| `typen` | Tickettypen | Die Auswahlliste „Tickettyp" der Ticketmaske |
 
-Was nicht lesbar ankommt, wird übergangen statt halb übernommen — ein Tickettyp ohne
-Kennung wäre in der Auswahlliste sichtbar und beim Anlegen wirkungslos. Kommt gar nichts
-Lesbares an, gilt weiter, was in der `config.json` steht: Ein Tippfehler im Manifest soll
-keine gültige Liste löschen.
+**Was hier bewusst NICHT steht: Tickettypen.** Sie wären der naheliegende dritte
+Kandidat — und genau der falsche. Ein ins Manifest geschriebener Typ altert: Ein in TANSS
+neu angelegter oder umbenannter käme nie im Outlook an, ohne dass jemand ein Manifest
+erzeugt, die Version erhöht und im Admin Center neu ausrollt — bis zu 72 Stunden, bis es
+bei allen Benutzern gilt. Dieselbe Falle, die eine selbst gehostete Ablage stellt.
+
+Beides gilt deshalb als Regel: **In das Manifest gehört nur, was sich nicht ändert.** Die
+TANSS-Adresse und die Anwendungs-Id ändern sich einmal im Leben einer Installation.
+Tickettypen ändern sich im Betrieb — sie kommen aus der API.
 
 ---
 
@@ -489,7 +492,7 @@ keine gültige Liste löschen.
 | `features.createSupport` | Selbst Einsätze anlegen. **Nur** in einer Installation ohne Kalendersynchronisation einschalten — sonst entstehen zwei Einträge je Termin. |
 | `features.graphMail` | Die Nachricht über Microsoft Graph holen. Braucht `entra.clientId`. |
 | `defaults.*` | Vorbelegung von Einsatzart, Ort, Intern-Kennzeichen und Tickettyp. |
-| `ticketTypes` | Die Tickettypen dieser Installation als `[{id, name}]`. Leer: Die Ticketmaske zeigt kein Typfeld. **Nur bei eigener Ablage** — auf der gepflegten kommen sie aus dem Manifest, siehe unten. |
+| `ticketTypes` | **Nur ein Rückfall.** Geholt werden die Tickettypen aus TANSS selbst (`/api/v1/admin/ticketTypes`); dieser Schlüssel gilt erst, wenn diese Route nichts liefert. Leer und ohne Route: Die Ticketmaske zeigt kein Typfeld. |
 
 ---
 
