@@ -12,6 +12,7 @@
  * Mehrdeutigkeiten, die daran hingen.
  */
 
+import { reasonOf } from "../tanss/errors.js";
 import { VERSION } from "../version.js";
 import { rebuildStore, repository, session, settings, store } from "../runtime.js";
 
@@ -69,10 +70,13 @@ async function displayName(current, warnings) {
     for (const employee of await repository().listTechnicians()) {
       if (employee.id === id) return employee.name;
     }
-  } catch {
+  } catch (error) {
+    // Der Grund gehoert in die Meldung. "War nicht abrufbar" allein hat diesen Ausfall
+    // schon zweimal ueberdauert, ohne dass jemand sagen konnte, woran es liegt.
     warnings.push(
       "Die Technikerliste war nicht abrufbar. Der Name wird deshalb nicht angezeigt; "
-      + "auf die Ticketanlage hat das keinen Einfluss.",
+      + "auf die Ticketanlage hat das keinen Einfluss. "
+      + `Grund: /api/tanss.x/v1/technicians — ${reasonOf(error)}`,
     );
   }
   return current.username();

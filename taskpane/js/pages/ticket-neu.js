@@ -344,6 +344,20 @@ export async function render(ctx) {
     if (state.options && state.options.source === "fallback") {
       children.push(ui.banner({ tone: "warn", label: T.ticketNeu.optionsFallback }));
     }
+
+    // Warum etwas ausgefallen ist, steht jetzt DABEI. Frueher endete der Grund in einem
+    // leeren `catch`, und die Meldung sagte nur, DASS eine Liste fehlt - der
+    // Administrator fing bei null an, obwohl der Grund im Augenblick des Scheiterns
+    // vorlag. "HTTP 404" und "HTTP 403" fuehren zu ganz verschiedenen Suchen.
+    const ausfaelle = (state.options && state.options.failures) || [];
+    if (ausfaelle.length > 0) {
+      children.push(ui.banner({
+        tone: "warn",
+        label: `${T.ticketNeu.optionsFailures} ${ausfaelle
+          .map((eintrag) => `${eintrag.path} — ${eintrag.reason}`)
+          .join(" · ")}`,
+      }));
+    }
     if (state.similar.length > 0) {
       children.push(
         ui.banner({

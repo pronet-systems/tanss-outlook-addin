@@ -16,7 +16,7 @@
  *   Techniker einen Vorgang zu bestaetigen, von dem niemand weiss, ob er stattfand.
  */
 
-import { ApiError } from "./errors.js";
+import { ApiError, reasonOf } from "./errors.js";
 import { canonicalUid, formatSyncGroup, syncGroupMatches } from "./uid.js";
 import {
   appliedFields,
@@ -303,17 +303,22 @@ export class TanssRepository {
     const cached = this._options.get(key);
     if (cached) return cached;
 
+    // Was auf dem Weg ausfaellt, wird hier gesammelt statt verschluckt. Die Liste geht
+    // mit in die Antwort: Der Techniker sieht, DASS etwas fehlt, und der Administrator
+    // sieht, WARUM - ohne dass jemand ein Protokoll aufmachen muss.
+    const failures = [];
+
     const rules = await this._fieldRules(
-      { companyId, typeId, assigneeId, departmentId, signal });
+      { companyId, typeId, assigneeId, departmentId, failures, signal });
     const [states, technicians, departments] = await Promise.all([
       this._list("/api/v1/admin/ticketStates", signal, (raw) => raw
         .filter((item) => item && item.id && item.active !== false)
         .sort((a, b) => num(a.rank) - num(b.rank))
-        .map(namedId)),
+        .map(namedId), failures),
       this._list("/api/v1/employees/technicians", signal,
-        (raw) => raw.filter((item) => item && item.id).map(namedId)),
+        (raw) => raw.filter((item) => item && item.id).map(namedId), failures),
       this._list("/api/v1/employees/departments", signal,
-        (raw) => raw.filter((item) => item && item.id).map(namedId)),
+        (raw) => raw.filter((item) => item && item.id).map(namedId), failures),
     ]);
 
     const options = {
@@ -323,6 +328,7 @@ export class TanssRepository {
       departments,
       ...rules,
       source: rules.source,
+      failures,
     };
     this._options.put(key, options);
     return options;
@@ -341,7 +347,7 @@ export class TanssRepository {
    * TANSS setzt diese Kennzeichen NUR, wenn sie wahr sind - ein fehlendes Kennzeichen
    * heisst also "nicht verpflichtend" und nicht "unbekannt".
    */
-  async _fieldRules({ companyId, typeId, assigneeId, departmentId, signal }) {
+  async _fieldRules({ companyId, typeId, assigneeId, departmentId, failures, signal }) {
     const mild = {
       remitterRequired: false,
       forceAssignment: false,
@@ -363,7 +369,15 @@ export class TanssRepository {
       // Die Route hat geantwortet, aber wie eine gewoehnliche Ticketliste - ohne
       // Feldsteuerung. Sie trotzdem als Feldsteuerung zu lesen hiesse, aus einer
       // zufaelligen Ticketmenge Regeln abzuleiten.
-      if (!properties || Object.keys(properties).length === 0) return mild;
+      if (!properties || Object.keys(properties).length === 0) {
+        if (failures) {
+          failures.push({
+            path: "/api/v1/tickets/",
+            reason: "geantwortet, aber ohne Feldsteuerung im meta-Block",
+          });
+        }
+        return mild;
+      }
       const extras = properties.extras || {};
       return {
         remitterRequired: Boolean(extras.remitterIsAMandatoryField),
@@ -371,17 +385,26 @@ export class TanssRepository {
         autoAssignedEmployeeId: num(extras.autoAssignedEmployeeId) || null,
         source: "properties",
       };
-    } catch {
+    } catch (error) {
+      if (failures) failures.push({ path: "/api/v1/tickets/", reason: reasonOf(error) });
       return mild;
     }
   }
 
-  /** Eine Auswahlliste, die ausfallen darf. Faellt sie aus, bleibt sie leer. */
-  async _list(path, signal, shape) {
+  /**
+   * Eine Auswahlliste, die ausfallen darf. Faellt sie aus, bleibt sie leer.
+   *
+   * Entbehrlich heisst nicht unbemerkt: Der Grund wandert nach `failures`, statt im
+   * `catch` zu verschwinden. Ohne ihn steht in der Maske "war nicht abrufbar", und wer
+   * das untersuchen soll, faengt bei null an - obwohl der Grund im Augenblick des
+   * Scheiterns vorlag.
+   */
+  async _list(path, signal, shape, failures = null) {
     try {
       const raw = (await this.client.get(path, { signal })) || [];
       return shape(Array.isArray(raw) ? raw : []);
-    } catch {
+    } catch (error) {
+      if (failures) failures.push({ path, reason: reasonOf(error) });
       return [];
     }
   }

@@ -14,6 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { TanssRepository, isFreshEmlDocument, shapeOf } from "../../taskpane/js/tanss/repository.js";
+import { ApiError, reasonOf } from "../../taskpane/js/tanss/errors.js";
 
 /** Ein Client, der Aufrufe aufzeichnet und vorbereitete Antworten liefert. */
 function fakeClient(routes) {
@@ -513,4 +514,79 @@ test("ohne gefragte Firma wird nichts gefiltert und nichts behauptet", async () 
 
   assert.deepEqual(ergebnis.items.map((r) => r.name), ["Fremde"]);
   assert.equal(ergebnis.unverified, false);
+});
+
+/* -------------------------------------------------------- Gruende statt Schweigen */
+
+test("faellt eine Auswahlliste aus, steht der Grund in der Antwort", async () => {
+  // Zweimal hintereinander hat das Pane gemeldet, die Technikerliste sei "nicht
+  // abrufbar" - und niemand konnte sagen, woran es liegt, weil der Grund zwei Zeilen
+  // vorher in einem leeren `catch` verschwand. Ein Ausfall darf entbehrlich sein; er
+  // darf nicht unbemerkt sein.
+  const client = {
+    calls: [],
+    get: async (pfad) => {
+      if (pfad === "/api/v1/employees/technicians") {
+        throw new ApiError("INTERNAL", "weg", { status: 404 });
+      }
+      return [];
+    },
+    put: async () => ({ content: {}, meta: {} }),
+    post: async () => ({}),
+    call: async () => [],
+  };
+  const options = await new TanssRepository({ client, config: {} }).ticketOptions({});
+
+  const treffer = options.failures.find((f) => f.path === "/api/v1/employees/technicians");
+  assert.ok(treffer, `kein Eintrag fuer die Technikerliste: ${JSON.stringify(options.failures)}`);
+  assert.match(treffer.reason, /404/, "der HTTP-Status muss dastehen");
+  assert.deepEqual(options.technicians, [], "die Liste bleibt trotzdem leer statt zu werfen");
+});
+
+test("auch der Rueckfall der Feldsteuerung nennt seinen Grund", async () => {
+  // "Die Auswahllisten stammen aus dem Rueckfall" sagte bisher nicht, ob die Route
+  // gescheitert ist oder geantwortet hat, ohne Feldsteuerung zu liefern. Das sind zwei
+  // verschiedene Ursachen mit zwei verschiedenen Suchen.
+  const client = {
+    calls: [],
+    get: async (pfad) => {
+      if (pfad === "/api/v1/tickets/") throw new ApiError("FORBIDDEN", "nein", { status: 403 });
+      return [];
+    },
+    put: async () => ({ content: {}, meta: {} }),
+    post: async () => ({}),
+    call: async () => [],
+  };
+  const options = await new TanssRepository({ client, config: {} }).ticketOptions({});
+
+  assert.equal(options.source, "fallback");
+  const treffer = options.failures.find((f) => f.path === "/api/v1/tickets/");
+  assert.ok(treffer);
+  assert.match(treffer.reason, /403/);
+});
+
+test("antwortet die Feldsteuerung ohne Regeln, wird auch das gesagt", async () => {
+  // Kein Fehler, aber auch keine Feldsteuerung. Wer das als Ausfall meldete, schickte den
+  // Administrator auf die Suche nach einem Fehler, den es nicht gibt.
+  const client = {
+    calls: [],
+    get: async () => ({}),
+    put: async () => ({ content: {}, meta: {} }),
+    post: async () => ({}),
+    call: async () => [],
+  };
+  const options = await new TanssRepository({ client, config: {} }).ticketOptions({});
+
+  const treffer = options.failures.find((f) => f.path === "/api/v1/tickets/");
+  assert.ok(treffer);
+  assert.match(treffer.reason, /ohne Feldsteuerung/);
+});
+
+test("der Grund nennt die Schnittstelle, nie den Antwortkoerper", async () => {
+  // Er wandert in eine Meldung, die weitergereicht wird. Route, Code und Status
+  // beschreiben die Schnittstelle; ein Antwortkoerper beschriebe den Vorgang.
+  assert.equal(reasonOf(new ApiError("FORBIDDEN", "egal", { status: 403 })), "HTTP 403 · FORBIDDEN");
+  assert.equal(reasonOf(new ApiError("INTERNAL", "egal", { status: 500 })), "HTTP 500");
+  assert.equal(reasonOf(new TypeError("Failed to fetch")), "TypeError: Failed to fetch");
+  assert.equal(reasonOf(null), "ohne Angabe");
 });

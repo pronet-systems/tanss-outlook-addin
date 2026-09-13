@@ -190,6 +190,7 @@ export const T = deepFreeze({
     similarHeading: "Ähnliche Tickets",
     similarHint: "Vielleicht gehört diese Mail an ein bestehendes Ticket.",
     similarSwitch: "Stattdessen anhängen",
+    optionsFailures: "Nicht abrufbar:",
     optionsFallback:
       "Die Auswahllisten stammen aus dem Rückfall: sie sind nicht nach Firma gefiltert.",
     submit: "Ticket anlegen",
