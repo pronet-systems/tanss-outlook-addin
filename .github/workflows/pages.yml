@@ -24,7 +24,7 @@ on:
       - "deploy/config.pages.json"
       - ".github/workflows/pages.yml"
   # Erlaubt die Veroeffentlichung aus einem beliebigen Zweig, solange die statische
-  # Fassung noch nicht in main steht.
+  # Ausfuehrung noch nicht in main steht.
   workflow_dispatch:
 
 permissions:

@@ -3,7 +3,7 @@
  *
  * Es gibt genau eine Sprache (Deutsch) und trotzdem diese Datei: nicht wegen einer
  * spaeteren Uebersetzung, sondern weil verstreute Literale unweigerlich auseinanderlaufen.
- * Stehen dieselbe Meldung an vier Stellen und drei Fassungen davon widersprechen einander,
+ * Stehen dieselbe Meldung an vier Stellen und drei Wortlaute davon widersprechen einander,
  * kann niemand mehr sagen, welche der Benutzer zu sehen bekommt.
  *
  * Regel: Im uebrigen Taskpane steht kein Literal, das ein Benutzer lesen kann.
@@ -76,7 +76,7 @@ export const T = deepFreeze({
     diagnose: "Diagnose",
     unknownRoute: "Diese Ansicht gibt es nicht.",
     unknownRouteHint:
-      "Der Aufruf zeigt auf eine Seite, die es in dieser Fassung nicht gibt. " +
+      "Der Aufruf zeigt auf eine Seite, die es in dieser Version nicht gibt. " +
       "Wahrscheinlich ist das Manifest neuer als das Taskpane oder umgekehrt.",
   },
 
@@ -282,7 +282,7 @@ export const T = deepFreeze({
     configEntra: "Anwendungs-Id für Microsoft",
     configSource: "Herkunft der Einstellungen",
     service: "Dienst",
-    serviceVersion: "Dienstfassung",
+    serviceVersion: "Dienstversion",
     employee: "TANSS-Mitarbeiter",
     limits: "Grenzen",
     maxEml: "Größte zulässige Mail",

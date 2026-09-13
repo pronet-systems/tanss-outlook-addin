@@ -78,11 +78,11 @@
      nach office.js - und die Meldungen, um die es geht, fallen waehrend dessen Start. -->
 <script src="js/boot-early.js"></script>
 
-<!-- office.js kommt vom Microsoft-CDN, weil der Host die dort ausgelieferte Fassung
+<!-- office.js kommt vom Microsoft-CDN, weil der Host die dort ausgelieferte Version
      erwartet; eine mitgelieferte Kopie wuerde bei jedem Office-Update veralten. -->
 <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 
-<!-- MSAL dagegen liegt bei: feste Fassung, SHA-256 in vendor/CHECKSUMS, ausgeliefert vom
+<!-- MSAL dagegen liegt bei: feste Version, SHA-256 in vendor/CHECKSUMS, ausgeliefert vom
      eigenen Origin. Kein npm, kein Lockfile, kein node_modules - auf keiner Maschine. -->
 <script src="vendor/msal-browser-4.30.0.min.js"></script>
 

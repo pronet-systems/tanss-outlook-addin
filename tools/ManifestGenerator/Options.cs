@@ -128,8 +128,8 @@ public sealed record Options
             ? new Uri(api.GetLeftPart(UriPartial.Authority))
             : RequireHttps(nameof(TanssFrontend), tanssFrontend);
 
-        var fassung = string.IsNullOrWhiteSpace(version) ? DefaultVersion : version.Trim();
-        RequireVersion(fassung);
+        var stand = string.IsNullOrWhiteSpace(version) ? DefaultVersion : version.Trim();
+        RequireVersion(stand);
 
         var id = (entraClientId ?? "").Trim();
         if (id.Length > 0 && !Guid.TryParse(id, out _))
@@ -144,7 +144,7 @@ public sealed record Options
             AddinBase = basis,
             TanssApi = api,
             TanssFrontend = frontend,
-            Version = fassung,
+            Version = stand,
             DisplayName = Fallback(displayName, DefaultDisplayName),
             ProviderName = Fallback(providerName, DefaultProviderName),
             SupportUrl = string.IsNullOrWhiteSpace(supportUrl)
@@ -193,8 +193,8 @@ public sealed record Options
     /// Die Untergrenze ist keine Vorliebe: Microsofts Pruefdienst weist ein Manifest mit
     /// kleinerer Version ab. Und die Version muss von Erzeugung zu Erzeugung WACHSEN -
     /// bei gleicher Version uebergeht Microsoft die Aktualisierung stillschweigend, und
-    /// die Benutzer behalten die alte Fassung. Das kann dieses Werkzeug nicht pruefen;
-    /// es kennt die zuletzt ausgelieferte Fassung nicht.
+    /// die Benutzer behalten die alte Version. Das kann dieses Werkzeug nicht pruefen;
+    /// es kennt die zuletzt ausgelieferte Version nicht.
     /// </remarks>
     private static void RequireVersion(string version)
     {

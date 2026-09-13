@@ -1,5 +1,5 @@
 /**
- * Die Fassung des Panes.
+ * Die Version des Panes.
  *
  * Sie steht in einer eigenen Datei, weil sie an genau zwei Stellen gebraucht wird - der
  * Diagnoseseite und der Identitaetsauskunft - und sonst in beiden haengen bliebe. Bei

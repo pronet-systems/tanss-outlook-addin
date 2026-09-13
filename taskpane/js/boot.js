@@ -93,7 +93,7 @@ if (!early && typeof document !== "undefined" && typeof document.addEventListene
  * Der Wert `_host_Info`, den Outlook an die Seitenadresse haengt.
  *
  * office.js liest ihn aus `window.location.search` - und NUR von dort, wenn es keinen
- * Draht zum Wirt gibt (`window.external`). Er traegt Host, Plattform, Fassung und Sprache
+ * Draht zum Wirt gibt (`window.external`). Er traegt Host, Plattform, Version und Sprache
  * in einer mit `$` getrennten Kette. Fehlt er, weiss office.js nicht, welche
  * hostspezifische Datei es nachladen soll, und der Start kommt nie zum Ende. Genau das
  * laesst sich hier ablesen, statt es zu vermuten.

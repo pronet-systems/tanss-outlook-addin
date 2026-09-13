@@ -1,6 +1,6 @@
 /**
  * Anmeldung, Erneuerung und Aufbewahrung des Tokens - der einzige Ort, an dem in dieser
- * Fassung ein Token entsteht.
+ * Version ein Token entsteht.
  *
  * Es gibt keinen eigenen Dienst mehr, der im Namen des Technikers handeln koennte.
  * Deshalb meldet sich der Techniker selbst an und bekommt sein EIGENES Token. Der

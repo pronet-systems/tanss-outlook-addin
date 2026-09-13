@@ -113,7 +113,7 @@ export function supportedMailboxSets() {
   return candidates.filter((version) => isSetSupported("Mailbox", version));
 }
 
-/** Host, Plattform und Fassung, so wie der laufende Client sie meldet. */
+/** Host, Plattform und Version, so wie der laufende Client sie meldet. */
 export function hostInfo() {
   const office = globalThis.Office;
   const box = mailbox();

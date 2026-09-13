@@ -220,7 +220,7 @@ public partial class MainWindow : Window
     /// Der Hinweis auf die Version steht hier und nicht in der Anleitung, weil er den
     /// stillsten aller Fehler betrifft: Bleibt die Version gleich, uebergeht Microsoft
     /// die Aktualisierung wortlos, und niemand bemerkt, dass die Benutzer weiter mit der
-    /// alten Fassung arbeiten.
+    /// alten Version arbeiten.
     /// </remarks>
     private void NaechsteSchritte(string pfad, Options options)
     {
@@ -236,7 +236,7 @@ public partial class MainWindow : Window
             + "also nie erreichbar sein." + Environment.NewLine + Environment.NewLine
             + "Bei einer spaeteren Aenderung die Version erhoehen. Bleibt sie gleich, "
             + "uebergeht Microsoft die Aktualisierung, und die Benutzer behalten "
-            + "stillschweigend die alte Fassung.";
+            + "stillschweigend die alte Version.";
 
         MessageBox.Show(this, text, "Manifest erzeugt", MessageBoxButton.OK,
             MessageBoxImage.Information);

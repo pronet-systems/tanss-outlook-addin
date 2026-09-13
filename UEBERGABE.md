@@ -28,7 +28,7 @@ wurde, kostet beim zweiten Mal genauso viel Zeit wie beim ersten.
 ## Stand in einem Absatz
 
 Das Add-in besteht aus statischen Dateien und einem Werkzeug, das daraus ein Manifest
-erzeugt. Einen Dienst gibt es nicht: Eine frühere Fassung, die einen Python-Dienst
+erzeugt. Einen Dienst gibt es nicht: Eine frühere Version, die einen Python-Dienst
 zwischen Outlook und TANSS legte, wurde vor der Veröffentlichung verworfen — ihre
 Erfahrungen stecken in den Abschnitten unten. 141 Tests laufen durch, der Generator
 baut, und das erzeugte Manifest nimmt Microsofts Prüfdienst an. Was fehlt, ist der Lauf
@@ -52,7 +52,7 @@ taskpane/                 wird unveraendert ausgeliefert, rund 600 KB
     services/             die vierzehn fachlichen Vorgaenge
     tanss/                client, session, repository, models, uid, errors
     pages/                die fuenf Masken
-  vendor/                 msal-browser, feste Fassung, Pruefsumme daneben
+  vendor/                 msal-browser, feste Version, Pruefsumme daneben
 tools/ManifestGenerator/  WPF, erzeugt das Manifest und prueft die Angaben
 deploy/                   vhost-Vorlage und die Konfiguration der gemeinsamen Ablage
 tests/js/                 141 Faelle, eingebauter Testlaeufer von Node
@@ -249,7 +249,7 @@ steht im Kopf des Panes.
      verfeinern".
 
    Ein Python-Werkzeug, das diese drei gegen eine laufende Instanz gemessen hat, ist mit
-   der Dienstfassung entfallen. Der **natürliche Ort dafür ist der Prüflauf im
+   der Dienstversion entfallen. Der **natürliche Ort dafür ist der Prüflauf im
    Generator** — er spricht ohnehin schon mit TANSS.
 3. **Der Generator hat keine eigenen Tests.** Seine Prüffunktion läuft bei jeder
    Erzeugung und verweigert ein schadhaftes Manifest, aber sie ist selbst ungeprüft. Ein

@@ -338,22 +338,22 @@ test("jede mitgelieferte Fremddatei stimmt mit ihrer Pruefsumme", () => {
       + "ausgetauscht, oder sie wurde beim Auschecken umkodiert.");
   }
 
-  // Eine liegengebliebene Altfassung wuerde vom eigenen Ursprung ausgeliefert und waere
+  // Eine liegengebliebene alte Version wuerde vom eigenen Ursprung ausgeliefert und waere
   // von aussen erreichbar, obwohl sie niemand mehr prueft.
   const vorhanden = readdirSync(VENDOR).filter((name) => name !== "CHECKSUMS");
   const ungedeckt = vorhanden.filter((name) => !erwartet.has(name));
   assert.deepEqual(ungedeckt, [], "diese Dateien liegen in vendor/, stehen aber in keiner Zeile");
 });
 
-test("genau eine Fassung der Fremdbibliothek liegt bei, und die Seite laedt sie", () => {
-  const fassungen = readdirSync(VENDOR).filter((name) => name.startsWith("msal-browser-"));
-  assert.equal(fassungen.length, 1, `mehr als eine Fassung: ${fassungen}`);
-  // Kein "@latest", kein "^4": Eine bewegliche Fassung waere dieselbe Luecke wie ein
+test("genau eine Version der Fremdbibliothek liegt bei, und die Seite laedt sie", () => {
+  const versionen = readdirSync(VENDOR).filter((name) => name.startsWith("msal-browser-"));
+  assert.equal(versionen.length, 1, `mehr als eine Version: ${versionen}`);
+  // Kein "@latest", kein "^4": Eine bewegliche Version waere dieselbe Luecke wie ein
   // Auslieferungsnetz, nur langsamer.
-  assert.match(fassungen[0], /^msal-browser-\d+\.\d+\.\d+\.min\.js$/);
+  assert.match(versionen[0], /^msal-browser-\d+\.\d+\.\d+\.min\.js$/);
   // Der Dateiname ist in index.html verdrahtet. Zeigt er auf eine andere Datei, ist die
   // Pruefsumme richtig und trotzdem wertlos.
-  assert.ok(lies(join(TASKPANE, "index.html")).includes(`src="vendor/${fassungen[0]}"`));
+  assert.ok(lies(join(TASKPANE, "index.html")).includes(`src="vendor/${versionen[0]}"`));
   assert.deepEqual(readdirSync(VENDOR).filter((name) => name.endsWith(".map")), [],
     "eine Quellkarte gehoert nicht auf den Server");
 });
@@ -526,7 +526,7 @@ test("meta-Element und Ablagevorlage nennen dieselben Skript-Herkuenfte", () => 
   const ausKopfzeile = cspDirektiven(zeile.split('"')[1])["script-src"];
 
   assert.deepEqual(ausKopfzeile, ausMeta,
-    "die beiden Fassungen der Skript-Direktive sind auseinandergelaufen");
+    "die beiden Ausfertigungen der Skript-Direktive sind auseinandergelaufen");
 });
 
 test("jede Skript-Herkunft der Richtlinie wird auch wirklich gebraucht", () => {

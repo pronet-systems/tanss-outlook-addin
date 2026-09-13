@@ -14,7 +14,7 @@ wäre es das Gegenteil: Es steht dafür, wer hinter einer Sache steht, und darf 
 nicht in fremdem Namen verwendet werden.
 
 Wer dieses Add-in einsetzt, anpasst oder weitergibt, darf das Zeichen daher **nicht** so
-verwenden, dass der Eindruck entsteht, ProNet Systems stehe hinter der eigenen Fassung.
+verwenden, dass der Eindruck entsteht, ProNet Systems stehe hinter der eigenen Abwandlung.
 Für eine eigene Installation ist die Datei schlicht zu ersetzen:
 
 ```
@@ -44,5 +44,5 @@ der wirksamste Angriff auf dieses Werkzeug und von außen nicht zu bemerken.
 ## office.js
 
 `office.js` wird vom Microsoft-CDN geladen und ist **nicht** Teil dieses Repositories.
-Der Host erwartet die dort ausgelieferte Fassung; eine mitgelieferte Kopie würde bei
+Der Host erwartet die dort ausgelieferte Version; eine mitgelieferte Kopie würde bei
 jedem Office-Update veralten.

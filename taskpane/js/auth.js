@@ -280,7 +280,7 @@ function toResult(result) {
 /**
  * Besteht eine TANSS-Anmeldung?
  *
- * Sie ist in dieser Fassung der Regelweg und nicht mehr der Rueckfall - der Name
+ * Sie ist in dieser Version der Regelweg und nicht mehr der Rueckfall - der Name
  * stammt aus der Zeit, als sich das Pane bei einem eigenen Dienst auswies.
  */
 export function hasFallbackSession() {

@@ -194,9 +194,9 @@ https://pronet-systems.github.io/tanss-outlook-addin
 
 Diese Adresse ist im Generator bereits vorbelegt, und Sie sollten sie stehen lassen. Der
 Grund ist nicht Bequemlichkeit, sondern **Wartung**: Dort liegt immer die aktuelle
-Fassung. Fehlerbehebungen und Verbesserungen erreichen Ihre Techniker, ohne dass Sie
+Version. Fehlerbehebungen und Verbesserungen erreichen Ihre Techniker, ohne dass Sie
 etwas tun — kein neues Manifest, kein Gang ins Admin Center, kein Ausrollen. Beim
-nächsten Öffnen des Panes gilt die neue Fassung.
+nächsten Öffnen des Panes gilt die neue Version.
 
 Wer die Dateien selbst ablegt, schneidet sich von diesen Aktualisierungen ab und muss sie
 von Hand nachziehen. Das ist ein legitimer Wunsch, aber es ist einer mit laufenden
@@ -542,16 +542,16 @@ genauen Wert, den Sie unter *Authentifizierung* nachsehen sollten.
 
 ## Aktualisieren
 
-**Die Dateien: gar nichts.** Wer die gepflegte Ablage nutzt, bekommt jede neue Fassung
+**Die Dateien: gar nichts.** Wer die gepflegte Ablage nutzt, bekommt jede neue Version
 selbsttätig — beim nächsten Öffnen des Panes gilt sie. Kein Manifest, kein Admin Center,
 kein Ausrollen. Das ist der eigentliche Grund, diese Ablage zu nehmen.
 
-Einen Vorbehalt gibt es: Der Arbeitsplatz hält eine geladene Fassung **zehn Minuten**
+Einen Vorbehalt gibt es: Der Arbeitsplatz hält eine geladene Version **zehn Minuten**
 vor. Wer eine Korrektur sofort sehen will, schließt Outlook und leert den
 Zwischenspeicher — siehe [Wenn etwas nicht geht](#wenn-etwas-nicht-geht).
 
 **Bei eigener Ablage** tauschen Sie die Dateien selbst aus; auch dann gilt beim nächsten
-Öffnen die neue Fassung, ein Manifest muss dafür nicht angefasst werden.
+Öffnen die neue Version, ein Manifest muss dafür nicht angefasst werden.
 
 ```bash
 rsync -a --delete taskpane/ /var/www/tanss-outlook-addin/   # config.json ausnehmen!
@@ -562,7 +562,7 @@ Berechtigungsstufe ändern. Dann im Generator die **Version erhöhen**, neu erze
 im Admin Center über **Update** einspielen.
 
 > Bleibt die Version gleich, übergeht Microsoft die Aktualisierung **stillschweigend**,
-> und die Benutzer behalten die alte Fassung. Das ist der leiseste Fehler in diesem
+> und die Benutzer behalten die alte Version. Das ist der leiseste Fehler in diesem
 > Aufbau.
 
 ---
@@ -589,7 +589,7 @@ Proxy oder Inhaltsfilter, eine Browsererweiterung. Microsoft formuliert den Grun
 *„If the Office JavaScript API library files are blocked by network filters, firewalls, or
 browser extensions, Office.onReady will never resolve."*
 
-**Eine Korrektur kommt nicht an.** Der Arbeitsplatz hält eine geladene Fassung zehn
+**Eine Korrektur kommt nicht an.** Der Arbeitsplatz hält eine geladene Version zehn
 Minuten vor. Sofort wirksam wird sie so: Outlook schließen, dann den Zwischenspeicher
 leeren und Outlook neu starten.
 
@@ -661,7 +661,7 @@ Dateien zu ES-Modulen, damit der Testläufer genau die Dateien laden kann, die a
 Browser lädt. Dass sie diese Gestalt behält, wird mitgeprüft.
 
 Die einzige mitgelieferte Fremdbibliothek ist `@azure/msal-browser`. Sie liegt mit
-fester Fassung und SHA-256 in `taskpane/vendor/CHECKSUMS`; ein Test vergleicht bei jedem
+fester Version und SHA-256 in `taskpane/vendor/CHECKSUMS`; ein Test vergleicht bei jedem
 Lauf.
 
 ---

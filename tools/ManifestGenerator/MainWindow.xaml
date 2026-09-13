@@ -40,7 +40,7 @@
         <TextBlock Style="{StaticResource Beschriftung}" Text="Ablage-Adresse des Add-ins"/>
         <TextBox x:Name="AblageFeld" Text="https://pronet-systems.github.io/tanss-outlook-addin"/>
         <TextBlock Style="{StaticResource Hinweis}"
-                   Text="Vorbelegt mit der gepflegten Ablage von ProNet Systems. Dort liegt immer die aktuelle Fassung — Verbesserungen und Fehlerbehebungen erreichen Ihre Techniker ohne Ihr Zutun. Nur ändern, wenn Sie die Dateien bewusst selbst hosten; dann aktualisieren Sie sie auch selbst."/>
+                   Text="Vorbelegt mit der gepflegten Ablage von ProNet Systems. Dort liegt immer die aktuelle Version — Verbesserungen und Fehlerbehebungen erreichen Ihre Techniker ohne Ihr Zutun. Nur ändern, wenn Sie die Dateien bewusst selbst hosten; dann aktualisieren Sie sie auch selbst."/>
         <TextBlock Style="{StaticResource Hinweis}"
                    Text="Diese Adresse muss vom Arbeitsplatz des Technikers erreichbar sein — nicht von Microsoft. Ohne Schrägstrich am Ende. Es liegt dort nichts Kundenspezifisches: Welche TANSS-Instanz gilt, steht in Ihrem Manifest."/>
 
@@ -61,7 +61,7 @@
             <TextBlock Style="{StaticResource Beschriftung}" Text="Version"/>
             <TextBox x:Name="VersionFeld" Text="1.0.0.0"/>
             <TextBlock Style="{StaticResource Hinweis}"
-                       Text="Muss bei jeder Aktualisierung wachsen. Bleibt sie gleich, übergeht Microsoft die neue Fassung stillschweigend, und die Benutzer behalten die alte."/>
+                       Text="Muss bei jeder Aktualisierung wachsen. Bleibt sie gleich, übergeht Microsoft die neue Version stillschweigend, und die Benutzer behalten die alte."/>
 
             <TextBlock Style="{StaticResource Beschriftung}" Text="Name in Outlook"/>
             <TextBox x:Name="NameFeld" Text="TANSS"/>

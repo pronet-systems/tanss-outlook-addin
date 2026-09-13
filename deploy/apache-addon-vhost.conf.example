@@ -142,7 +142,7 @@
     #
     # Diese beiden Ordner tragen versionsfeste Dateinamen. Alles andere wird bei jedem
     # Oeffnen neu erfragt; ohne das haengt nach einer Aktualisierung ein Teil der
-    # Techniker auf der alten Fassung, und zwar genau so lange, wie es niemandem
+    # Techniker auf der alten Version, und zwar genau so lange, wie es niemandem
     # auffaellt.
     <LocationMatch "^/(vendor|assets)/">
         Header always set Cache-Control "public, max-age=31536000, immutable"

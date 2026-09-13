@@ -138,7 +138,7 @@ export async function render(ctx) {
 
   // Der Instanzschluessel kommt aus `GET /api/me`, das beim Oeffnen des Panes ohnehin
   // geladen wird - NICHT aus `/healthz`. Jene Route ist unauthentifiziert und nennt
-  // deshalb bewusst weder Fassung noch Instanz. Stuende der Schluessel hier leer, waere
+  // deshalb bewusst weder Version noch Instanz. Stuende der Schluessel hier leer, waere
   // Stufe 1 der Terminkopplung in beide Richtungen tot: Eine am Termin abgelegte
   // Einsatznummer wuerde nie wiedergefunden und nie geschrieben, ohne dass etwas
   // fehlschlaegt - die Maske boete still "Einsatz anlegen" an.

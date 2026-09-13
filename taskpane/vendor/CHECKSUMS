@@ -28,8 +28,8 @@
 #     && mv msal-browser.min.js "msal-browser-$V.min.js" \
 #     && curl -fsSL -o LICENSE-msal "https://cdn.jsdelivr.net/npm/@azure/msal-browser@$V/LICENSE" \
 #     && sha256sum "msal-browser-$V.min.js" LICENSE-msal
-# Danach den Dateinamen in taskpane/index.html nachziehen und die alte Fassung loeschen —
-# eine liegengebliebene Altfassung wuerde vom eigenen Origin ausgeliefert und waere von
+# Danach den Dateinamen in taskpane/index.html nachziehen und die alte Version loeschen —
+# eine liegengebliebene alte Version wuerde vom eigenen Origin ausgeliefert und waere von
 # aussen erreichbar, obwohl sie niemand mehr prueft.
 
 2b580165064a6a4ec041ebd44832299172688a23a42c3b81d65314799dba04eb  msal-browser-4.30.0.min.js
