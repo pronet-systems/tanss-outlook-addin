@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Erzeugt das Office-Manifest fuer eine TANSS-Instanz.
+
+    Keine Abhaengigkeit ausser der Standardbibliothek und WPF. Die Vorlage liegt als
+    eingebettete Ressource im Programm, damit das Ergebnis nicht davon abhaengt, aus
+    welchem Verzeichnis jemand das Werkzeug startet.
+
+    Einzeldatei bauen, die ohne installierte Laufzeit laeuft: siehe README, Abschnitt
+    "Manifest erzeugen". Der Aufruf steht dort und nicht hier, weil ein XML-Kommentar
+    keine zwei aufeinanderfolgenden Bindestriche enthalten darf - und jeder Schalter
+    von "dotnet publish" faengt mit zweien an.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>TanssAddin.ManifestGenerator</RootNamespace>
+    <AssemblyName>TanssManifest</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+
+    <!-- KEIN InvariantGlobalization. Es spart etwas Startgroesse und macht WPF
+         unbrauchbar: Sobald ein Textfeld den Fokus bekommt, fragt WPF nach der
+         Eingabesprache des Systems, und im invarianten Modus wirft jede andere Sprache
+         als die invariante. Auf einem deutschen System wirft damit JEDER Klick in ein
+         Eingabefeld - der Fehler sieht aus, als sei das Programm kaputt, und
+         verschwindet nur, wenn diese Einstellung fehlt. -->
+
+    <!-- Eine Warnung in dem Werkzeug, das ein Manifest fuer alle Benutzer erzeugt, ist
+         keine Kleinigkeit. Deshalb bricht der Bau daran ab. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="manifest.xml.tmpl" LogicalName="manifest.xml.tmpl" />
+  </ItemGroup>
+
+</Project>

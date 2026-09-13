@@ -1,0 +1,36 @@
+# Pruefsummen der mitgelieferten Fremddateien.
+#
+# Geprueft von tests/test_vendor_pruefsumme.py bei jedem CI-Lauf. Faellt der Test,
+# wurde die Datei ausgetauscht — entweder versehentlich (Zeilenende-Konvertierung,
+# halber Download) oder absichtlich. Beides muss auffallen, denn diese Datei laeuft
+# mit vollen Rechten im Taskpane und sieht jedes Microsoft-Token.
+#
+# Format: <sha256>  <dateiname>, kompatibel zu `sha256sum --check CHECKSUMS`.
+# Zeilen mit '#' sind Kommentar, Leerzeilen werden ignoriert.
+#
+# Herkunft
+# --------
+# Paket:   @azure/msal-browser 4.30.0 (npm-Tag "lts", veroeffentlicht 2026-03-18)
+# Datei:   lib/msal-browser.min.js aus dem unveraenderten npm-Paket
+# Lizenz:  MIT, Microsoft Corporation — Wortlaut daneben als LICENSE-msal
+# Bezug:   https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.30.0/lib/msal-browser.min.js
+#
+# ABWEICHUNG von der Bauvorlage: dort steht cdnjs als Bezugsquelle. cdnjs fuehrt
+# @azure/msal-browser nicht (api.cdnjs.com/libraries/msal-browser -> 404, Suche nach
+# "azure msal" -> 0 Treffer, Stand 2026-09-11). Bezogen wurde deshalb ueber den
+# npm-Spiegel von jsDelivr, der die unveraenderten Paketdateien der Registry
+# ausliefert — dieselben Bytes, die `npm pack @azure/msal-browser@4.30.0` erzeugt.
+# Die Pruefsumme unten ist damit gegen die Registry nachrechenbar.
+#
+# Aktualisierung (ein Befehl, ersetzt Datei UND Pruefsumme gemeinsam):
+#   V=4.31.0; cd taskpane/vendor \
+#     && curl -fsSLO "https://cdn.jsdelivr.net/npm/@azure/msal-browser@$V/lib/msal-browser.min.js" \
+#     && mv msal-browser.min.js "msal-browser-$V.min.js" \
+#     && curl -fsSL -o LICENSE-msal "https://cdn.jsdelivr.net/npm/@azure/msal-browser@$V/LICENSE" \
+#     && sha256sum "msal-browser-$V.min.js" LICENSE-msal
+# Danach den Dateinamen in taskpane/index.html nachziehen und die alte Fassung loeschen —
+# eine liegengebliebene Altfassung wuerde vom eigenen Origin ausgeliefert und waere von
+# aussen erreichbar, obwohl sie niemand mehr prueft.
+
+2b580165064a6a4ec041ebd44832299172688a23a42c3b81d65314799dba04eb  msal-browser-4.30.0.min.js
+c544adf8f0d43453d9fdf6c11da19605d12d89806a7870653169b8cc97f5bb53  LICENSE-msal

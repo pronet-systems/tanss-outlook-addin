@@ -1,0 +1,90 @@
+# Veroeffentlicht das Taskpane auf GitHub Pages.
+#
+# Das ist KEIN Bauschritt. Es wird nichts uebersetzt, gebuendelt oder minimiert -
+# veroeffentlicht werden genau die Dateien, die im Repository liegen. Der Ablauf stellt
+# sie nur zusammen und legt die Konfiguration daneben, die auf einer gemeinsam genutzten
+# Ablage gilt.
+#
+# Warum ein Ablauf und nicht der Ordner "docs": Das Taskpane soll dort liegen bleiben, wo
+# es hingehoert, und nicht in eine Kopie wandern. Zwei Staende derselben Dateien laufen
+# frueher oder spaeter auseinander, und niemand merkt, welcher ausgeliefert wird.
+#
+# Vor jeder Veroeffentlichung laufen die Faelle. Eine Ablage, die jeder Kunde einbindet,
+# soll nicht mit einem Stand online gehen, den niemand geprueft hat - und darunter sind
+# die Waechter gegen fremde Hosts, gegen zusammengebautes Markup und fuer die Pruefsumme
+# der Fremdbibliothek.
+
+name: Taskpane veroeffentlichen
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "taskpane/**"
+      - "deploy/config.pages.json"
+      - ".github/workflows/pages.yml"
+  # Erlaubt die Veroeffentlichung aus einem beliebigen Zweig, solange die statische
+  # Fassung noch nicht in main steht.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Zwei gleichzeitige Veroeffentlichungen wuerden sich gegenseitig ueberholen. Abgebrochen
+# wird die laufende NICHT: Eine halb ausgelieferte Ablage waere schlimmer als eine, die
+# einen Moment aelter ist.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Faelle laufen lassen
+        run: npm test
+
+  veroeffentlichen:
+    needs: pruefen
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.ablage.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ablage zusammenstellen
+        run: |
+          set -eu
+          mkdir -p _site
+          cp -r taskpane/. _site/
+
+          # Die Konfiguration einer GEMEINSAMEN Ablage laesst die TANSS-Adresse offen:
+          # Sie steht im Manifest jedes Kunden. Ohne diese Datei griffe die Vorgabe
+          # "/backend" - also eine Adresse auf dem Hoster selbst, wo keine API liegt.
+          cp deploy/config.pages.json _site/config.json
+
+          # Ohne diese Datei laeuft Jekyll ueber die Ablage. Es wuerde jeden Ordner mit
+          # fuehrendem Unterstrich verschlucken - heute betrifft das nichts, und genau
+          # deshalb faellt es an dem Tag nicht auf, an dem es etwas betrifft.
+          touch _site/.nojekyll
+
+          echo "Veroeffentlicht werden:"
+          find _site -type f | sort
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: ablage
+        uses: actions/deploy-pages@v4

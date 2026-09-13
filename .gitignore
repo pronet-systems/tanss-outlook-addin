@@ -1,0 +1,45 @@
+# Konfiguration und Geheimnisse — gehören niemals ins Repository
+config.json
+config.partial.json
+.local/
+token
+token.bak
+session.key
+session.key.bak
+*.pem
+*.pfx
+*.key
+*.crt
+.env
+
+# Erzeugtes Manifest — es trägt die echte Add-in-Kennung, die Entra-Anwendungs-Id und
+# den Hostnamen einer bestimmten Installation. Im Repository steht nur die Vorlage
+# unter tools/ManifestGenerator/manifest.xml.tmpl.
+manifest.xml
+
+# Sourcemaps der mitgelieferten Fremdbibliothek: nicht ausgeliefert und nicht geprüft.
+taskpane/vendor/*.map
+
+# Bildschirmfotos zur Abstimmung. Sie zeigen echte Postfachinhalte und fremde
+# Anwendungen; beides gehört nicht in ein Repository, das veröffentlicht wird.
+screenshots/
+
+# Reste einer oertlichen Werkzeugkette. Zum Projekt gehoert nichts davon - es baut
+# nichts und installiert nichts -, aber auf einem Arbeitsplatz, auf dem frueher etwas
+# anderes lag, sollen sie nicht als unverfolgte Dateien auftauchen.
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Editoren und Betriebssysteme
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Bauartefakte des Manifest-Generators
+tools/ManifestGenerator/bin/
+tools/ManifestGenerator/obj/

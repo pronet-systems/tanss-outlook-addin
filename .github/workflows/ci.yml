@@ -1,0 +1,59 @@
+# Dauerpruefung.
+#
+# Zwei Auftraege, weil es zwei Erzeugnisse gibt: die statischen Dateien, die im Outlook
+# des Technikers laufen, und das Werkzeug, mit dem ein Administrator das Manifest
+# erzeugt. Sie haben nichts miteinander zu tun und sollen einzeln gruen oder rot sein -
+# faellt einer, soll im Ergebnis nicht "ein Test von 138" stehen.
+#
+# Es wird nichts installiert, was nicht ohnehin da ist: Der Testlaeufer gehoert zu Node,
+# und die Dateien werden unveraendert geladen - dieselben, die der Browser laedt.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Ein neuer Anstoss auf demselben Zweig loest den vorherigen ab: Niemand liest das
+  # Ergebnis eines Laufs, der schon ueberholt ist.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  taskpane:
+    name: Taskpane
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Kein `npm ci` und kein `npm install`: Es gibt keine Abhaengigkeit. Genau das
+      # prueft einer der Faelle mit, statt es der package.json zu glauben.
+      - name: Faelle laufen lassen
+        run: npm test
+
+  generator:
+    name: Manifest-Generator
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # Windows, weil der Generator eine WPF-Anwendung ist. Gebaut wird mit
+      # TreatWarningsAsErrors - eine Warnung in dem Werkzeug, das ein Manifest fuer alle
+      # Benutzer eines Mandanten erzeugt, ist keine Kleinigkeit.
+      - name: Bauen
+        run: dotnet build tools/ManifestGenerator/ManifestGenerator.csproj -c Release

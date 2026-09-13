@@ -1,0 +1,25 @@
+{
+  "apiBase": "https://tanss.example.de/backend",
+  "allowedApiOrigins": [],
+  "frontendBase": "https://tanss.example.de",
+  "instance": "",
+  "entra": {
+    "clientId": ""
+  },
+  "limits": {
+    "maxEmlBytes": 26214400
+  },
+  "features": {
+    "appointments": true,
+    "createSupport": false,
+    "graphMail": true,
+    "graphCalendar": false
+  },
+  "defaults": {
+    "supportTypeId": 0,
+    "location": "OFFICE",
+    "internal": true,
+    "ticketTypeId": 0
+  },
+  "ticketTypes": []
+}

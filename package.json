@@ -1,0 +1,10 @@
+{
+  "name": "tanss-outlook-addin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Statisches Outlook-Taskpane fuer TANSS. Diese Datei bringt KEINEN Bauschritt und KEINE Abhaengigkeit mit: Sie erklaert die .js-Dateien zu ES-Modulen, damit der eingebaute Testlaeufer von Node sie unveraendert laden kann - dieselben Dateien, die der Browser laedt.",
+  "scripts": {
+    "test": "node --test \"tests/js/*.js\""
+  }
+}

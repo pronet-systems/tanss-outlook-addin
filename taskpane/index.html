@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TANSS</title>
+
+<!--
+  Inhaltsrichtlinie. Sie zaehlt genau die Herkuenfte auf, die gebraucht werden:
+
+    script-src   'self'                          - das Taskpane und die mitgelieferte MSAL-Datei
+                 appsforoffice.microsoft.com     - office.js, der einzige Fremdskript-Ursprung
+    connect-src  https:                          - die TANSS-Instanz, siehe unten
+                 login.microsoftonline.com       - MSAL waehrend einer Rueckfrage
+                 graph.microsoft.com             - die geoeffnete Nachricht im Original
+    frame-src    login.microsoftonline.com       - stiller Anmelderahmen von MSAL
+
+  Warum connect-src hier NICHT die TANSS-Adresse nennt: Sie steht erst in der
+  config.json der jeweiligen Installation. Bei einer gemeinsam genutzten Ablage bringt
+  jeder Kunde seine eigene mit - eine hier eingetragene Adresse waere entweder falsch
+  oder muesste je Kunde eine eigene Kopie dieser Datei erzwingen.
+
+  Aufgefangen wird das an der Stelle, die die Adresse kennt: Der Ablageort schickt
+  dieselbe Richtlinie als HTTP-Kopfzeile mit, dort mit der konkreten Adresse statt
+  `https:`. Beide gelten gleichzeitig, und je Direktive gewinnt die STRENGERE - die
+  Kopfzeile verschaerft also, was hier steht. Auf einem Hoster, der keine Kopfzeilen
+  setzen kann, bleibt es bei `https:`; dann traegt die Begrenzung allein der fehlende
+  Aufrufcode und tests/test_keine_fremden_hosts.py, der jede fremde Adresse im
+  Quelltext beanstandet.
+
+  Alles andere ist ausgeschlossen. Das Taskpane liest Betreff, Mailtext, vollstaendiges
+  MIME und ein Microsoft-Token - Daten, die keinen dritten Empfaenger haben duerfen, auch
+  nicht versehentlich und auch nicht, wenn spaeter jemand eine Bibliothek einbindet, die
+  nach Hause telefoniert.
+
+  frame-ancestors fehlt hier mit Absicht: in einem <meta>-Element wird die Anweisung vom
+  Browser ignoriert. Sie MUSS als HTTP-Kopfzeile vom Ablageort kommen - und wo das nicht
+  geht, ist das Taskpane in jede fremde Seite einbettbar. Die Vorlagen unter deploy/
+  setzen sie; die Begrenzung steht dort und nicht hier.
+-->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' https://appsforoffice.microsoft.com;
+  style-src 'self';
+  img-src 'self' data:;
+  font-src 'self';
+  connect-src https: https://login.microsoftonline.com https://graph.microsoft.com;
+  frame-src https://login.microsoftonline.com;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'none'">
+
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="assets/icon-32.png" type="image/png">
+
+<!-- office.js kommt vom Microsoft-CDN, weil der Host die dort ausgelieferte Fassung
+     erwartet; eine mitgelieferte Kopie wuerde bei jedem Office-Update veralten. -->
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+
+<!-- MSAL dagegen liegt bei: feste Fassung, SHA-256 in vendor/CHECKSUMS, ausgeliefert vom
+     eigenen Origin. Kein npm, kein Lockfile, kein node_modules - auf keiner Maschine. -->
+<script src="vendor/msal-browser-4.30.0.min.js"></script>
+
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<!-- Der einzige sichtbare Text ausserhalb von i18n/de.js: er muss stehen, BEVOR ein Modul
+     geladen ist, und deckt genau den Fall ab, in dem gar keines laedt. main.js ersetzt ihn. -->
+<div id="app"><p class="boot">TANSS wird geladen …</p></div>
+</body>
+</html>

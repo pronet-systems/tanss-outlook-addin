@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- @vorlage:begin@ -->
+<!--
+  Vorlage des Office-Manifests. EINZIGE Manifestquelle der statischen Fassung.
+
+  Gerendert wird sie vom Generator in diesem Verzeichnis. Jeder eingesetzte Wert wird
+  vorher XML-escaped; ein nicht ersetzter Platzhalter ist ein harter Fehler und kein
+  Schoenheitsfehler - er erreicht ueber die zentrale Verteilung jeden Benutzer auf
+  einmal.
+
+  Platzhalter:
+    base_url              HTTPS-Basis der abgelegten Dateien, ohne Schraegstrich am Ende.
+                          Nur fuer Symbole - sie duerfen keinen Mandantenparameter tragen.
+    page_url              Adresse der index.html, bei Bedarf mit ?tanss=<Instanz>. Nur
+                          fuer die Seitenaufrufe; das Fragment wird direkt angehaengt.
+    addin_id              GUID des Add-ins, aus der TANSS-Adresse abgeleitet
+    version               Office-Manifestversion, muss monoton wachsen
+    display_name          Name, wie Outlook ihn zeigt
+    provider_name         Herausgeber des Add-ins
+    support_url           Ziel von SupportUrl
+    tanss_frontend_origin Herkunft der TANSS-Weboberflaeche fuer AppDomains
+    entra_client_id       Entra-Anwendungs-Id; kommt nur im WebApplicationInfo-Block vor
+    entra_resource_uri    api://<host>/<clientId>; ebenfalls nur dort
+
+  Der Bereich zwischen den Marken @entra-only:begin@ und @entra-only:end@ wird
+  vollstaendig entfernt, wenn keine Anwendungs-Id angegeben ist. Die Marken sind
+  XML-Kommentare, damit auch die unausgefuellte Vorlage wohlgeformtes XML bleibt.
+
+  Dieser Kopf erklaert die VORLAGE und wird beim Rendern entfernt. Was danach an
+  Kommentaren stehenbleibt, erklaert das MANIFEST und gehoert in die erzeugte Datei.
+-->
+<!-- @vorlage:end@ -->
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xsi:type="MailApp">
+
+  <!-- Einmalig erzeugt, in manifest_state festgeschrieben, NIE aendern: fuer Outlook ist
+       ein Add-in mit anderer Id ein anderes Add-in. Die alte Installation bliebe bei
+       jedem Benutzer stehen, und niemand bemerkte es, weil beide funktionieren. -->
+  <Id>${addin_id}</Id>
+  <!-- Muss monoton wachsen, sonst uebergeht Microsoft die Aktualisierung stillschweigend
+       und die Benutzer behalten die alte Fassung, ohne dass etwas fehlschlaegt. -->
+  <Version>${version}</Version>
+  <ProviderName>${provider_name}</ProviderName>
+  <DefaultLocale>de-DE</DefaultLocale>
+  <DisplayName DefaultValue="${display_name}"/>
+  <Description DefaultValue="Tickets aus E-Mails erstellen, E-Mails an Tickets hängen, Termine als TANSS-Einsatz pflegen."/>
+  <IconUrl               DefaultValue="${base_url}/assets/icon-64.png"/>
+  <HighResolutionIconUrl DefaultValue="${base_url}/assets/icon-128.png"/>
+  <SupportUrl            DefaultValue="${support_url}"/>
+
+  <!-- Ziele von openBrowserWindow bzw. eines window.open-Rueckfalls. Ohne diese Eintraege
+       oeffnet Outlook externe Links IM Taskpane statt im Browser - der Techniker landete
+       dann mit der TANSS-Oberflaeche in einem schmalen Rahmen ohne Adresszeile und ohne
+       Weg zurueck. login.microsoftonline.com wird fuer MSAL-Popups und fuer
+       Claims-Challenges aus Conditional-Access-Richtlinien gebraucht. -->
+  <AppDomains>
+    <AppDomain>${tanss_frontend_origin}</AppDomain>
+    <AppDomain>https://login.microsoftonline.com</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Mailbox"/>
+  </Hosts>
+
+  <!-- 1.6 ist die INSTALLATIONS-Untergrenze, nicht das Maximum: dort liegt
+       Office.context.mailbox.userProfile.accountType, und daran haengt die Weiche zwischen
+       Graph-Pfad (Postfach in Exchange Online) und Bordmittel-Rekonstruktion
+       (accountType === "enterprise", also Postfach auf lokalem Exchange). Ohne sie muesste
+       das Taskpane Autodiscover abfragen - ein zusaetzlicher Fremdhost in der CSP und ein
+       Netzaufruf vor dem ersten Formular.
+       1.7 (RecipientsChanged) wird NICHT gebraucht: wir lesen die Teilnehmer einmal beim
+       Oeffnen. Ein Ereignishandler muesste beim Routenwechsel zuverlaessig abgemeldet
+       werden, sonst laeuft er gegen Knoten, die es nicht mehr gibt.
+       1.8 (getAttachmentContentAsync) wird zur Laufzeit mit
+       Office.context.requirements.isSetSupported("Mailbox", "1.8") abgefragt. Eine hoehere
+       Untergrenze hier machte das Add-in auf aelteren Hosts unsichtbar, statt es in die
+       Rekonstruktion degradieren zu lassen. -->
+  <Requirements>
+    <Sets DefaultMinVersion="1.6">
+      <Set Name="Mailbox" MinVersion="1.6"/>
+    </Sets>
+  </Requirements>
+
+  <!-- Pflichtangabe des Altformats: der Einstieg fuer Hosts ohne Befehlsleiste. Er zeigt
+       dieselbe index.html wie die Schaltflaechen unten, nur ueber die Hash-Route. -->
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="${page_url}#/ticket/neu"/>
+        <RequestedHeight>420</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+
+  <!-- ReadWriteItem: wir schreiben Custom Properties und rufen saveAsync auf dem Termin.
+       ReadWriteMailbox wird AUSDRUECKLICH NICHT verlangt - kein makeEwsRequestAsync, kein
+       loadItemByIdAsync, kein Zugriff auf ein anderes als das geoeffnete Element. Die
+       Berechtigungsstufe ist genau das, was der Benutzer im Zustimmungsdialog liest; eine
+       Stufe ohne Verwender kostet Zustimmung, die niemand braucht. -->
+  <Permissions>ReadWriteItem</Permissions>
+
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message"     FormType="Read"/>
+    <Rule xsi:type="ItemIs" ItemType="Appointment" FormType="Edit"/>
+  </Rule>
+
+  <!-- Aus: die Hervorhebung erkannter Entitaeten laesst den Host Mailinhalte durch seine
+       Erkennung schicken und bringt diesem Add-in nichts ein. -->
+  <DisableEntityHighlighting>true</DisableEntityHighlighting>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
+                    xsi:type="VersionOverridesV1_0">
+    <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1"
+                      xsi:type="VersionOverridesV1_1">
+
+      <Requirements>
+        <bt:Sets DefaultMinVersion="1.6">
+          <bt:Set Name="Mailbox"/>
+        </bt:Sets>
+      </Requirements>
+
+      <Hosts>
+        <Host xsi:type="MailHost">
+          <DesktopFormFactor>
+
+            <!-- Kein FunctionFile: alle Einstiege sind ShowTaskpane, es gibt keine
+                 ExecuteFunction-Aktion, keine commands.html und keinen Shared Runtime.
+                 Eine Funktionsdatei waere ein zweiter, unsichtbarer Laufzeitkontext mit
+                 eigenem Fehlerverhalten - und kein Codepfad braucht ihn. -->
+
+            <!-- EIN Knopf mit einem Aufklappmenue, nicht zwei Knoepfe nebeneinander.
+                 Das Menueband einer Mailansicht ist voll; bei zwei Knoepfen klappt
+                 Outlook als erstes die Beschriftungen weg, und es stehen zwei fast
+                 gleiche Symbole nebeneinander, die niemand auseinanderhaelt. Im Menue
+                 steht jeder Vorgang ausgeschrieben da.
+
+                 Die beiden Eintraege tragen EIGENE Symbole - dasselbe Symbol zweimal
+                 waere schlechter als gar keines: Es sieht nach einer Auswahl aus, die
+                 keine ist. -->
+            <ExtensionPoint xsi:type="MessageReadCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="grpTanss">
+                  <Label resid="grpLabel"/>
+
+                  <Control xsi:type="Menu" id="mnuTanss">
+                    <Label resid="grpLabel"/>
+                    <Supertip>
+                      <Title resid="grpLabel"/>
+                      <Description resid="dscMenu"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="i16"/>
+                      <bt:Image size="32" resid="i32"/>
+                      <bt:Image size="80" resid="i80"/>
+                    </Icon>
+                    <Items>
+
+                      <Item id="itmTicketNeu">
+                        <Label resid="lblNeu"/>
+                        <Supertip>
+                          <Title resid="lblNeu"/>
+                          <Description resid="dscNeu"/>
+                        </Supertip>
+                        <Icon>
+                          <bt:Image size="16" resid="iNeu16"/>
+                          <bt:Image size="32" resid="iNeu32"/>
+                          <bt:Image size="80" resid="iNeu80"/>
+                        </Icon>
+                        <Action xsi:type="ShowTaskpane">
+                          <SourceLocation resid="urlNeu"/>
+                        </Action>
+                      </Item>
+
+                      <Item id="itmTicketAnhaengen">
+                        <Label resid="lblAnhaengen"/>
+                        <Supertip>
+                          <Title resid="lblAnhaengen"/>
+                          <Description resid="dscAnhaengen"/>
+                        </Supertip>
+                        <Icon>
+                          <bt:Image size="16" resid="iAnh16"/>
+                          <bt:Image size="32" resid="iAnh32"/>
+                          <bt:Image size="80" resid="iAnh80"/>
+                        </Icon>
+                        <Action xsi:type="ShowTaskpane">
+                          <SourceLocation resid="urlAnhaengen"/>
+                        </Action>
+                      </Item>
+
+                    </Items>
+                  </Control>
+
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+
+            <!-- Organizer, NICHT Attendee: die Terminseite ruft saveAsync und
+                 getItemIdAsync und schreibt Custom Properties - im Attendee-Lesemodus
+                 existiert nichts davon, die Schaltflaeche fuehrte dort in eine Seite, die
+                 sofort mit APPOINTMENT_NOT_SAVED abbraeche. -->
+            <ExtensionPoint xsi:type="AppointmentOrganizerCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="grpTanssTermin">
+                  <Label resid="grpLabel"/>
+
+                  <Control xsi:type="Button" id="btnTermin">
+                    <Label resid="lblTermin"/>
+                    <Supertip>
+                      <Title resid="lblTermin"/>
+                      <Description resid="dscTermin"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="i16"/>
+                      <bt:Image size="32" resid="i32"/>
+                      <bt:Image size="80" resid="i80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="urlTermin"/>
+                    </Action>
+                  </Control>
+
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+
+            <!-- KEIN MessageComposeCommandSurface (es gibt keine Compose-Route) und KEIN
+                 AppointmentAttendeeCommandSurface. MobileFormFactor bleibt in v1 aussen
+                 vor - Nachruesten ist eine reine Manifestaenderung. -->
+
+          </DesktopFormFactor>
+        </Host>
+      </Hosts>
+
+      <Resources>
+        <!-- Drei Saetze: der Knopf selbst, und je ein Satz fuer die beiden
+             Menueeintraege. Die Eintragssymbole tragen dasselbe Zeichen mit einem
+             Abzeichen - gruenes Plus fuer "neu anlegen", oranger Pfeil fuer "an ein
+             bestehendes". Bei 16 Pixeln bleibt davon ein farbiger Punkt, und genau der
+             reicht, um die Eintraege auseinanderzuhalten. -->
+        <bt:Images>
+          <bt:Image id="i16"    DefaultValue="${base_url}/assets/icon-16.png"/>
+          <bt:Image id="i32"    DefaultValue="${base_url}/assets/icon-32.png"/>
+          <bt:Image id="i80"    DefaultValue="${base_url}/assets/icon-80.png"/>
+          <bt:Image id="iNeu16" DefaultValue="${base_url}/assets/icon-neu-16.png"/>
+          <bt:Image id="iNeu32" DefaultValue="${base_url}/assets/icon-neu-32.png"/>
+          <bt:Image id="iNeu80" DefaultValue="${base_url}/assets/icon-neu-80.png"/>
+          <bt:Image id="iAnh16" DefaultValue="${base_url}/assets/icon-anhaengen-16.png"/>
+          <bt:Image id="iAnh32" DefaultValue="${base_url}/assets/icon-anhaengen-32.png"/>
+          <bt:Image id="iAnh80" DefaultValue="${base_url}/assets/icon-anhaengen-80.png"/>
+        </bt:Images>
+
+        <!-- Hash-Routen: jede Adresse trifft dieselbe index.html, ein statischer
+             Hoster braucht damit keine Umschreiberegel und keinen SPA-Rueckfall. Office
+             haengt sein eigenes _host_Info als Abfrageparameter VOR dem Fragment an und
+             ersetzt dabei nichts - Parameter und Fragment ueberstehen das beide. -->
+        <bt:Urls>
+          <bt:Url id="urlNeu"       DefaultValue="${page_url}#/ticket/neu"/>
+          <bt:Url id="urlAnhaengen" DefaultValue="${page_url}#/ticket/anhaengen"/>
+          <bt:Url id="urlTermin"    DefaultValue="${page_url}#/termin"/>
+        </bt:Urls>
+
+        <bt:ShortStrings>
+          <bt:String id="grpLabel"     DefaultValue="TANSS"/>
+          <bt:String id="lblNeu"       DefaultValue="Ticket erstellen"/>
+          <bt:String id="lblAnhaengen" DefaultValue="An Ticket anhängen"/>
+          <bt:String id="lblTermin"    DefaultValue="TANSS-Einsatz"/>
+        </bt:ShortStrings>
+
+        <bt:LongStrings>
+          <bt:String id="dscMenu"      DefaultValue="Diese E-Mail in TANSS verarbeiten: ein Ticket daraus anlegen oder sie einem bestehenden zuordnen."/>
+          <bt:String id="dscNeu"       DefaultValue="Aus dieser E-Mail ein TANSS-Ticket anlegen und die Mail samt Anhängen dort ablegen."/>
+          <bt:String id="dscAnhaengen" DefaultValue="Diese E-Mail einem bestehenden TANSS-Ticket zuordnen."/>
+          <bt:String id="dscTermin"    DefaultValue="Firma, Einsatzart, Ticket und Ort für diesen Termin in TANSS pflegen."/>
+        </bt:LongStrings>
+      </Resources>
+
+      <!-- @entra-only:begin@ -->
+      <!-- Nur erzeugt, wenn entra.tenant_id und entra.client_id gesetzt sind; sonst
+           entfernt manifest.py diesen Bereich samt Marken.
+           Fuer NAA ist der Block BEDEUTUNGSLOS: NAA haengt allein an der MSAL-Konfiguration
+           im Taskpane und an der SPA-Redirect-URI brk-multihub://<host> der
+           Entra-Registrierung; im Manifest steht dafuer nichts. Der Block traegt den
+           zweiten Weg, OfficeRuntime.auth.getAccessToken - ohne ihn scheitert der mit
+           13000 - und loest bei der zentralen Bereitstellung die Administratorzustimmung
+           aus.
+           GENAU DESHALB stehen hier nur openid und profile: jeder weitere Scope verlangt
+           eine erneute Zustimmung des Administrators, und bis sie vorliegt, ist das Add-in
+           fuer alle Benutzer gesperrt. Mail.Read und Calendars.Read fordert MSAL ohnehin
+           zur Laufzeit an; offline_access machte Refresh-Token auf fremde Postfaecher
+           erhaeltlich, die kein Codepfad dieses Add-ins braucht.
+           Der Platz ist vorgeschrieben: fuer Outlook ans ENDE des VersionOverridesV1_1-
+           Blocks, hinter <Resources>. Im aeusseren V1_0-Block kennt das Schema
+           <WebApplicationInfo> ueberhaupt nicht. -->
+      <WebApplicationInfo>
+        <Id>${entra_client_id}</Id>
+        <Resource>${entra_resource_uri}</Resource>
+        <Scopes>
+          <Scope>openid</Scope>
+          <Scope>profile</Scope>
+        </Scopes>
+      </WebApplicationInfo>
+      <!-- @entra-only:end@ -->
+
+    </VersionOverrides>
+  </VersionOverrides>
+</OfficeApp>

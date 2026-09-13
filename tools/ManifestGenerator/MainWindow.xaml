@@ -1,0 +1,127 @@
+<Window x:Class="TanssAddin.ManifestGenerator.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="TANSS-Manifest erzeugen"
+        Height="760" Width="720" MinHeight="520" MinWidth="560"
+        Background="{StaticResource Flaeche}"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI" FontSize="13">
+
+  <DockPanel Margin="0">
+
+    <!-- Kopf: sagt in zwei Saetzen, wofuer das Werkzeug da ist. Wer es einmal im Jahr
+         benutzt, soll nicht in der Anleitung nachsehen muessen. -->
+    <Border DockPanel.Dock="Top" Background="White" BorderBrush="{StaticResource Linie}"
+            BorderThickness="0,0,0,1" Padding="20,16">
+      <StackPanel>
+        <TextBlock Text="TANSS-Manifest erzeugen" FontSize="19" FontWeight="SemiBold"/>
+        <TextBlock Style="{StaticResource Hinweis}" Margin="0,6,0,0"
+                   Text="Erzeugt die Manifestdatei, die im Microsoft 365 Admin Center hochgeladen wird. Sie sagt Outlook, wo das Add-in liegt und gegen welche TANSS-Instanz es arbeitet."/>
+      </StackPanel>
+    </Border>
+
+    <!-- Fuss: Ergebnis und Knopf bleiben immer sichtbar, auch wenn oben gescrollt wird. -->
+    <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="{StaticResource Linie}"
+            BorderThickness="0,1,0,0" Padding="20,14">
+      <DockPanel>
+        <Button x:Name="ErzeugenKnopf" DockPanel.Dock="Right" Content="Manifest erzeugen…"
+                Padding="18,8" FontWeight="SemiBold" Click="AufErzeugen"/>
+        <Button x:Name="PruefenKnopf" DockPanel.Dock="Right" Content="Prüfen"
+                Padding="18,8" Margin="0,0,8,0" Click="AufPruefen"/>
+        <TextBlock x:Name="Meldung" VerticalAlignment="Center" TextWrapping="Wrap"
+                   Margin="0,0,16,0" Foreground="{StaticResource Gedaempft}"
+                   Text="Bitte die beiden oberen Felder ausfüllen."/>
+      </DockPanel>
+    </Border>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,4,20,16">
+      <StackPanel>
+
+        <TextBlock Style="{StaticResource Beschriftung}" Text="Ablage-Adresse des Add-ins"/>
+        <TextBox x:Name="AblageFeld" Text="https://"/>
+        <TextBlock Style="{StaticResource Hinweis}"
+                   Text="Wo die Dateien des Taskpanes liegen, ohne Schrägstrich am Ende. Diese Adresse muss vom Arbeitsplatz des Technikers erreichbar sein — nicht von Microsoft."/>
+
+        <TextBlock Style="{StaticResource Beschriftung}" Text="TANSS-API"/>
+        <TextBox x:Name="TanssFeld" Text="https://" TextChanged="AufTanssGeaendert"/>
+        <TextBlock Style="{StaticResource Hinweis}"
+                   Text="Die API-Adresse der TANSS-Instanz, meist auf /backend endend. Sie darf ausschließlich im Firmennetz erreichbar sein: Die Aufrufe gehen vom Browser des Technikers aus, nie vom Hoster."/>
+
+        <TextBlock Style="{StaticResource Beschriftung}" Text="Add-in-Kennung"/>
+        <TextBox x:Name="KennungFeld" IsReadOnly="True" Background="#FFF0F0F0"
+                 Text="— wird aus der TANSS-Adresse abgeleitet —"/>
+        <TextBlock Style="{StaticResource Hinweis}"
+                   Text="Wird berechnet, nicht gewürfelt: Dieselbe TANSS-Instanz ergibt immer dieselbe Kennung. Für Outlook ist ein Add-in mit anderer Kennung ein anderes Add-in — bei jedem Benutzer bliebe sonst die alte Installation daneben stehen."/>
+
+        <Expander Header="Weitere Angaben" Margin="0,18,0,0" IsExpanded="False">
+          <StackPanel Margin="0,4,0,0">
+
+            <TextBlock Style="{StaticResource Beschriftung}" Text="Version"/>
+            <TextBox x:Name="VersionFeld" Text="1.0.0.0"/>
+            <TextBlock Style="{StaticResource Hinweis}"
+                       Text="Muss bei jeder Aktualisierung wachsen. Bleibt sie gleich, übergeht Microsoft die neue Fassung stillschweigend, und die Benutzer behalten die alte."/>
+
+            <TextBlock Style="{StaticResource Beschriftung}" Text="Name in Outlook"/>
+            <TextBox x:Name="NameFeld" Text="TANSS"/>
+
+            <TextBlock Style="{StaticResource Beschriftung}" Text="Herausgeber"/>
+            <TextBox x:Name="HerausgeberFeld" Text="ProNet Systems GmbH"/>
+
+            <TextBlock Style="{StaticResource Beschriftung}" Text="TANSS-Oberfläche"/>
+            <TextBox x:Name="OberflaecheFeld"/>
+            <TextBlock Style="{StaticResource Hinweis}"
+                       Text="Ziel der Verweise „in TANSS öffnen“. Leer lassen, wenn sie unter derselben Adresse wie die API liegt."/>
+
+            <TextBlock Style="{StaticResource Beschriftung}" Text="Support-Adresse"/>
+            <TextBox x:Name="SupportFeld"/>
+            <TextBlock Style="{StaticResource Hinweis}"
+                       Text="Leer lassen, um die Ablage-Adresse zu verwenden."/>
+
+            <TextBlock Style="{StaticResource Beschriftung}" Text="Entra-Anwendungs-Id"/>
+            <TextBox x:Name="EntraFeld"/>
+            <TextBlock Style="{StaticResource Hinweis}"
+                       Text="Optional. Ohne sie setzt das Pane die E-Mail aus Office-Bordmitteln zusammen — eine Rekonstruktion statt des Originals: Empfangskette und Signaturköpfe fehlen dann."/>
+
+            <CheckBox x:Name="AdresseEinbetten" IsChecked="True" Margin="0,16,0,0"
+                      Content="TANSS-Adresse in das Manifest schreiben"/>
+            <TextBlock Style="{StaticResource Hinweis}"
+                       Text="So bedient eine einzige Ablage beliebig viele Kunden: Jeder bringt sein eigenes Manifest mit. Abschalten nur, wenn die Adresse stattdessen in der config.json neben den Dateien steht."/>
+
+          </StackPanel>
+        </Expander>
+
+        <!-- Ergebnis des Prüflaufs. Er misst die Angaben gegen die Wirklichkeit:
+             erreichbare Adressen, die Kopfzeile, an der die Einbettung scheitert,
+             die Zulassung des fremden Ursprungs, Zertifikatsablauf und die
+             Entra-Registrierung. Alle Prüfungen sind lesend und ohne Anmeldung. -->
+        <ItemsControl x:Name="Pruefliste" Margin="0,20,0,0">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Background="White" BorderBrush="{StaticResource Linie}"
+                      BorderThickness="1" CornerRadius="3" Padding="10,8" Margin="0,0,0,6">
+                <DockPanel>
+                  <TextBlock DockPanel.Dock="Left" Text="{Binding Zeichen}"
+                             Foreground="{Binding Farbe}" FontWeight="Bold" FontSize="15"
+                             Width="22" VerticalAlignment="Top"/>
+                  <StackPanel>
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding Bereich}"
+                                 Foreground="{StaticResource Gedaempft}" FontSize="11"
+                                 VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                 TextWrapping="Wrap"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontSize="12"
+                               Foreground="{StaticResource Gedaempft}" Margin="0,3,0,0"/>
+                  </StackPanel>
+                </DockPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+      </StackPanel>
+    </ScrollViewer>
+
+  </DockPanel>
+</Window>

@@ -1,0 +1,20 @@
+# Zeilenenden erzwingen. Ohne das checkt Git unter Windows CRLF aus, und ein
+# Shell-Skript mit CRLF scheitert unter Linux mit "bad interpreter: ...^M".
+* text=auto eol=lf
+
+*.sh      text eol=lf
+*.js      text eol=lf
+*.json    text eol=lf
+*.cs      text eol=lf
+*.csproj  text eol=lf
+*.xaml    text eol=lf
+*.tmpl    text eol=lf
+*.xml     text eol=lf
+*.md      text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+
+# Binärdateien nie anfassen
+*.png binary
+*.ico binary
+*.pem binary

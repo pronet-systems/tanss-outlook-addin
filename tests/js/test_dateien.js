@@ -1,0 +1,439 @@
+/**
+ * Die Waechter ueber die ausgelieferten Dateien.
+ *
+ * Durch dieses Taskpane laufen Betreff, vollstaendiger Klartext, komplettes MIME und ein
+ * Anmeldetoken. Diese Daten duerfen keinen weiteren Empfaenger bekommen - nicht durch
+ * eine nachtraeglich eingebundene Bibliothek, nicht durch einen Fehlersammler und nicht
+ * durch eine Zeile, die in zwei Jahren jemand in guter Absicht hinzufuegt.
+ *
+ * Die Faelle hier lesen DATEIEN, keinen laufenden Code. Sie sind die Sperre, die auch
+ * dann noch greift, wenn niemand mehr weiss, warum sie einmal eingezogen wurde. Jeder
+ * einzelne deckt einen Weg ab, auf dem sich die Zusagen des Handbuchs lautlos
+ * unterlaufen liessen.
+ */
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const WURZEL = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const TASKPANE = join(WURZEL, "taskpane");
+const VENDOR = join(TASKPANE, "vendor");
+
+/** Die drei Herkuenfte, mit denen das Pane sprechen darf - und keine vierte. */
+const ERLAUBT = new Set([
+  "https://appsforoffice.microsoft.com",
+  "https://login.microsoftonline.com",
+  "https://graph.microsoft.com",
+]);
+
+/**
+ * Namentlich gesperrt: verbreitete Fehlersammler und Skript-Auslieferungsnetze. Wer
+ * eines davon einbindet, verschiebt die Vertraulichkeit dieses Panes zu einem Dritten -
+ * und zwar so beilaeufig, dass es in keiner Durchsicht auffiele. Die Liste steht hier,
+ * damit eine Wiedereinfuehrung nicht als "nur ein Host mehr" durchgeht.
+ */
+const VERBRANNT = ["sentry.io", "ingest.sentry", "cdn.jsdelivr.net",
+  "cdnjs.cloudflare.com", "unpkg.com", "googleapis.com", "gstatic.com"];
+
+/**
+ * Fuer Beispiele reservierte Namensraeume. Sie gehoeren niemandem und loesen nirgends
+ * auf - eine Adresse darunter kann kein Empfaenger sein. Sie muss aber vorkommen
+ * duerfen: als Platzhalter in einem Eingabefeld, damit der Techniker die erwartete Form
+ * sieht.
+ */
+const BEISPIEL_ENDUNGEN = [".example", ".example.de", ".example.com", ".example.net",
+  ".example.org", ".invalid", ".test", ".localhost"];
+
+/** Alles, was eine Zeichenkette zu Markup macht - jeder Eintrag ein eigener Weg. */
+const MARKUP_WEGE = ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write",
+  "createContextualFragment", "srcdoc", "eval(", "new Function("];
+
+const URL_MUSTER = /https?:\/\/[A-Za-z0-9._%+-]+/g;
+const JAVASCRIPT_URL = /["'(]\s*javascript:/i;
+
+/** Die Beispielkonfiguration ist Anschauungsmaterial und wird gesondert geprueft. */
+const BEISPIELKONFIGURATION = "config.example.json";
+
+/* ------------------------------------------------------------------ Hilfsmittel */
+
+function dateienUnter(ordner, endungen, ausnahme = () => false) {
+  const gefunden = [];
+  for (const name of readdirSync(ordner)) {
+    const pfad = join(ordner, name);
+    if (ausnahme(pfad)) continue;
+    if (statSync(pfad).isDirectory()) {
+      gefunden.push(...dateienUnter(pfad, endungen, ausnahme));
+    } else if (endungen.some((endung) => name.endsWith(endung))) {
+      gefunden.push(pfad);
+    }
+  }
+  return gefunden;
+}
+
+/** Alle Dateien des Panes, die WIR geschrieben haben. */
+function eigeneDateien(endungen = [".js", ".html", ".css", ".json"]) {
+  // Auf Pfadsegmente pruefen, nicht auf Teilzeichenketten: Laege das Repository eines
+  // Tages in einem Ordner, der "vendor" im Namen traegt, schloesse eine schlichte
+  // Teilpruefung ALLE Dateien aus - und der Waechter bestuende stillschweigend ueber
+  // nichts.
+  const istVendor = (pfad) => relative(TASKPANE, pfad).split(/[\\/]/).includes("vendor");
+  return dateienUnter(TASKPANE, endungen,
+    (pfad) => istVendor(pfad) || pfad.endsWith(BEISPIELKONFIGURATION)).sort();
+}
+
+const lies = (pfad) => readFileSync(pfad, "utf8");
+const kurz = (pfad) => relative(TASKPANE, pfad).replace(/\\/g, "/");
+
+/**
+ * Der Quelltext ohne Kommentare - nur er kann etwas abrufen.
+ *
+ * Die Zusage lautet "es wird kein fremder Host ANGESPROCHEN", nicht "das Wort kommt
+ * nirgends vor": Ein Kommentar, der eine Adresse nennt, um sie zu erklaeren oder
+ * auszuschliessen, ruft nichts auf.
+ */
+function ohneKommentare(pfad) {
+  return lies(pfad)
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    // Das `(?<!:)` haelt das `//` in `https://` aus der Zeilenkommentarregel heraus.
+    .replace(/(?<!:)\/\/.*$/gm, " ");
+}
+
+/** Zeigt diese Adresse auf einen fuer Beispiele reservierten Namen? */
+function istBeispieladresse(url) {
+  const host = url.split("//")[1].split("/")[0].split(":")[0].toLowerCase();
+  return BEISPIEL_ENDUNGEN.some((endung) => host.endsWith(endung));
+}
+
+/** Zerlegt eine Inhaltsrichtlinie in `{Direktive: [Quellen]}`. */
+function cspDirektiven(text) {
+  const direktiven = {};
+  for (const teil of text.split(";")) {
+    const stuecke = teil.trim().split(/\s+/).filter(Boolean);
+    if (stuecke.length > 0) direktiven[stuecke[0]] = stuecke.slice(1);
+  }
+  return direktiven;
+}
+
+/** Der Inhalt des `<meta>`-Elements mit der Inhaltsrichtlinie. */
+function metaRichtlinie() {
+  const html = lies(join(TASKPANE, "index.html"));
+  const beginn = html.indexOf('http-equiv="Content-Security-Policy"');
+  assert.ok(beginn > 0, "index.html traegt keine Inhaltsrichtlinie");
+  return html.slice(beginn).split('content="')[1].split('"')[0];
+}
+
+/* -------------------------------------------------------- Gibt es etwas zu pruefen */
+
+test("es gibt ueberhaupt etwas zu pruefen", () => {
+  // Ein Suchlauf ueber null Dateien ist gruen und sagt nichts. Verschiebt jemand
+  // taskpane/ oder benennt es um, soll das hier auffallen und nicht stillschweigend
+  // bestehen.
+  const dateien = eigeneDateien();
+  assert.ok(dateien.length >= 10, `nur ${dateien.length} Dateien gefunden - stimmt der Pfad?`);
+
+  const namen = new Set(dateien.map((pfad) => pfad.split(/[\\/]/).pop()));
+  for (const pflicht of ["index.html", "main.js", "ui.js", "api.js", "auth.js", "office.js"]) {
+    assert.ok(namen.has(pflicht), `${pflicht} fehlt`);
+  }
+});
+
+/* ------------------------------------------------------- Kein Markup aus Text */
+
+for (const weg of MARKUP_WEGE) {
+  test(`das Pane baut kein Markup ueber ${weg}`, () => {
+    // Firmen-, Ticket- und Absendernamen kommen aus TANSS und damit aus einem System,
+    // in das Kunden schreiben. EINE Zuweisung mit einem Firmennamen ist eine
+    // Skriptausfuehrung im Pane - und das Pane haelt ein Anmeldetoken.
+    const fundstellen = [];
+    for (const pfad of eigeneDateien([".js", ".html", ".css"])) {
+      lies(pfad).split(/\r?\n/).forEach((zeile, i) => {
+        if (zeile.includes(weg)) fundstellen.push(`${kurz(pfad)}:${i + 1}: ${zeile.trim()}`);
+      });
+    }
+    assert.deepEqual(fundstellen, [], `${weg} gefunden`);
+  });
+}
+
+test("es gibt keine javascript:-Adresse", () => {
+  const fundstellen = [];
+  for (const pfad of eigeneDateien([".js", ".html", ".css"])) {
+    lies(pfad).split(/\r?\n/).forEach((zeile, i) => {
+      if (JAVASCRIPT_URL.test(zeile)) fundstellen.push(`${kurz(pfad)}:${i + 1}`);
+    });
+  }
+  assert.deepEqual(fundstellen, []);
+});
+
+test("der eine Erzeuger setzt textContent", () => {
+  const quelle = lies(join(TASKPANE, "js", "ui.js"));
+  assert.ok(quelle.includes("textContent"));
+  assert.ok(quelle.includes("export function el("));
+});
+
+test("die Seiten bauen ihre Knoten nicht selbst", () => {
+  // Wer `document.createElement` selbst aufruft, umgeht den einen Erzeuger - und mit
+  // ihm die Regel, die er traegt.
+  const fundstellen = dateienUnter(join(TASKPANE, "js", "pages"), [".js"])
+    .filter((pfad) => lies(pfad).includes("document.createElement"))
+    .map(kurz);
+  assert.deepEqual(fundstellen, []);
+});
+
+/* ------------------------------------------------------------ Keine fremden Hosts */
+
+test("im Pane steht keine fremde Adresse", () => {
+  const fundstellen = [];
+  for (const pfad of eigeneDateien()) {
+    ohneKommentare(pfad).split(/\r?\n/).forEach((zeile, i) => {
+      for (const treffer of zeile.match(URL_MUSTER) || []) {
+        if (ERLAUBT.has(treffer.replace(/\/+$/, "")) || istBeispieladresse(treffer)) continue;
+        fundstellen.push(`${kurz(pfad)}:${i + 1}: ${treffer}`);
+      }
+    });
+  }
+  assert.deepEqual(fundstellen, [], "fremde Adresse im Pane");
+});
+
+for (const host of VERBRANNT) {
+  test(`der gesperrte Host ${host} taucht nicht auf`, () => {
+    for (const pfad of eigeneDateien()) {
+      assert.ok(!ohneKommentare(pfad).includes(host), `${host} steht in ${kurz(pfad)}`);
+    }
+  });
+}
+
+test("es gibt keinen Fehlersammler im Pane", () => {
+  for (const pfad of eigeneDateien()) {
+    const quelle = ohneKommentare(pfad);
+    assert.ok(!quelle.includes("Sentry"), kurz(pfad));
+    assert.ok(!quelle.includes("tracesSampleRate"), kurz(pfad));
+  }
+});
+
+test("die Aufrufe stehen nicht als feste Adresse im Quelltext", () => {
+  // Das Add-in laeuft unter jedem Hostnamen, ohne dass etwas umgeschrieben werden muss -
+  // und es gibt keine Stelle, an der jemand eine feste Basis unterschieben koennte.
+  const dateien = [join(TASKPANE, "js", "api.js"),
+    ...dateienUnter(join(TASKPANE, "js", "pages"), [".js"])];
+  for (const pfad of dateien) {
+    for (const treffer of ohneKommentare(pfad).match(URL_MUSTER) || []) {
+      assert.ok(istBeispieladresse(treffer),
+        `${kurz(pfad)} enthaelt die feste Adresse ${treffer}. Aufrufe gehoeren ueber die `
+        + "Konfiguration, nicht in den Quelltext.");
+    }
+  }
+});
+
+test("die Beispielkonfiguration nennt nur Beispieladressen", () => {
+  // Die Datei wird mit dem Repository veroeffentlicht. Eine dort vergessene Adresse
+  // verriete, wer dieses Werkzeug einsetzt, und liesse sich nicht zurueckholen -
+  // Beispieldateien werden kopiert, nicht gelesen.
+  const pfad = join(TASKPANE, BEISPIELKONFIGURATION);
+  const fundstellen = [];
+  lies(pfad).split(/\r?\n/).forEach((zeile, i) => {
+    for (const treffer of zeile.match(URL_MUSTER) || []) {
+      if (!istBeispieladresse(treffer)) fundstellen.push(`${BEISPIELKONFIGURATION}:${i + 1}: ${treffer}`);
+    }
+  });
+  assert.deepEqual(fundstellen, []);
+});
+
+/* ------------------------------------------------------------------- Die Seite */
+
+test("die Seite laedt ein Stylesheet und keine Schrift", () => {
+  // Jede Schriftdatei ist ein weiterer Abruf vor der ersten Anzeige und, kaeme sie von
+  // einem fremden Host, ein weiterer Eintrag in der Inhaltsrichtlinie.
+  const html = lies(join(TASKPANE, "index.html"));
+  assert.equal((html.match(/<link rel="stylesheet"/g) || []).length, 1);
+  assert.ok(!lies(join(TASKPANE, "app.css")).includes("@font-face"));
+});
+
+test("die Seite traegt kein BOM", () => {
+  // Ein BOM macht aus der ersten Zeile Text VOR dem Dokumenttyp; manche Hosts schalten
+  // dann in einen Kompatibilitaetsmodus.
+  const roh = readFileSync(join(TASKPANE, "index.html"));
+  assert.notEqual(roh[0], 0xef);
+  assert.ok(roh.toString("utf8").trimStart().startsWith("<!doctype html>"));
+});
+
+/* -------------------------------------------------------------- Die Richtlinie */
+
+test("die Richtlinie im meta-Element nennt genau die noetigen Herkuenfte", () => {
+  const direktiven = cspDirektiven(metaRichtlinie());
+  assert.deepEqual(direktiven["default-src"], ["'self'"]);
+  assert.deepEqual(direktiven["script-src"], ["'self'", "https://appsforoffice.microsoft.com"]);
+  // `https:` steht fuer die TANSS-Instanz, deren Adresse erst in der config.json der
+  // jeweiligen Installation steht. Verschaerft wird die Direktive vom Ablageort.
+  assert.deepEqual(direktiven["connect-src"],
+    ["https:", "https://login.microsoftonline.com", "https://graph.microsoft.com"]);
+  assert.deepEqual(direktiven["object-src"], ["'none'"]);
+  assert.deepEqual(direktiven["form-action"], ["'none'"]);
+});
+
+test("die Richtlinie im meta-Element setzt keine frame-ancestors", () => {
+  // In einem meta-Element wird die Anweisung vom Browser IGNORIERT. Kaeme sie nur von
+  // dort, waere das Pane in jede fremde Seite einbettbar - und der Entwurf saehe
+  // trotzdem richtig aus.
+  assert.ok(!metaRichtlinie().includes("frame-ancestors"));
+});
+
+test("die Ablagevorlage verschaerft die Verbindungsdirektive", () => {
+  // Was das meta-Element offen lassen muss, schliesst der Ablageort. Die Vorlage nennt
+  // dafuer einen Platzhalter statt einer Adresse: Wer ihn stehen laesst, bekommt eine
+  // Richtlinie, die JEDEN Aufruf an TANSS blockiert - und zwar leise, denn der Browser
+  // meldet es nur in seiner eigenen Konsole.
+  const vorlage = join(WURZEL, "deploy", "apache-addon-vhost.conf.example");
+  const text = lies(vorlage);
+  const zeile = text.slice(text.indexOf("Content-Security-Policy")).split("\n")[0];
+  const direktiven = cspDirektiven(zeile.split('"')[1]);
+
+  assert.ok(direktiven["connect-src"].includes("<tanss-url>"),
+    "die Vorlage nennt die TANSS-Adresse nicht in connect-src");
+  assert.ok(!direktiven["connect-src"].includes("https:"),
+    "die Vorlage laesst connect-src offen - dort ist die Adresse aber bekannt");
+  assert.ok("frame-ancestors" in direktiven,
+    "ohne frame-ancestors in der Kopfzeile ist das Pane in jede fremde Seite einbettbar");
+  for (const herkunft of ["https://*.office.com", "https://*.outlook.com"]) {
+    assert.ok(direktiven["frame-ancestors"].includes(herkunft), `${herkunft} fehlt`);
+  }
+});
+
+/* ------------------------------------------------------------ Die Fremdbibliothek */
+
+test("jede mitgelieferte Fremddatei stimmt mit ihrer Pruefsumme", () => {
+  // Sie laeuft mit vollen Rechten im Pane und sieht jedes Token, das dort durchgeht.
+  // Ein untergeschobener Austausch - versehentlich durch eine
+  // Zeilenende-Umwandlung oder absichtlich - waere der wirksamste Angriff auf dieses
+  // Werkzeug und von aussen nicht zu bemerken.
+  const erwartet = new Map();
+  for (const zeile of lies(join(VENDOR, "CHECKSUMS")).split(/\r?\n/)) {
+    const text = zeile.trim();
+    if (!text || text.startsWith("#")) continue;
+    const treffer = /^([0-9a-f]{64})\s+(\S+)$/.exec(text);
+    assert.ok(treffer, `unlesbare Zeile in CHECKSUMS: ${text}`);
+    erwartet.set(treffer[2], treffer[1]);
+  }
+  assert.ok(erwartet.size > 0, "CHECKSUMS enthaelt keine einzige Pruefsumme");
+
+  for (const [name, summe] of erwartet) {
+    const gemessen = createHash("sha256").update(readFileSync(join(VENDOR, name))).digest("hex");
+    assert.equal(gemessen, summe,
+      `${name} weicht von der hinterlegten Pruefsumme ab. Entweder wurde die Datei `
+      + "ausgetauscht, oder sie wurde beim Auschecken umkodiert.");
+  }
+
+  // Eine liegengebliebene Altfassung wuerde vom eigenen Ursprung ausgeliefert und waere
+  // von aussen erreichbar, obwohl sie niemand mehr prueft.
+  const vorhanden = readdirSync(VENDOR).filter((name) => name !== "CHECKSUMS");
+  const ungedeckt = vorhanden.filter((name) => !erwartet.has(name));
+  assert.deepEqual(ungedeckt, [], "diese Dateien liegen in vendor/, stehen aber in keiner Zeile");
+});
+
+test("genau eine Fassung der Fremdbibliothek liegt bei, und die Seite laedt sie", () => {
+  const fassungen = readdirSync(VENDOR).filter((name) => name.startsWith("msal-browser-"));
+  assert.equal(fassungen.length, 1, `mehr als eine Fassung: ${fassungen}`);
+  // Kein "@latest", kein "^4": Eine bewegliche Fassung waere dieselbe Luecke wie ein
+  // Auslieferungsnetz, nur langsamer.
+  assert.match(fassungen[0], /^msal-browser-\d+\.\d+\.\d+\.min\.js$/);
+  // Der Dateiname ist in index.html verdrahtet. Zeigt er auf eine andere Datei, ist die
+  // Pruefsumme richtig und trotzdem wertlos.
+  assert.ok(lies(join(TASKPANE, "index.html")).includes(`src="vendor/${fassungen[0]}"`));
+  assert.deepEqual(readdirSync(VENDOR).filter((name) => name.endsWith(".map")), [],
+    "eine Quellkarte gehoert nicht auf den Server");
+});
+
+test("die Lizenz der Fremdbibliothek liegt daneben", () => {
+  const wortlaut = lies(join(VENDOR, "LICENSE-msal"));
+  assert.ok(wortlaut.includes("MIT"));
+  assert.ok(wortlaut.includes("Microsoft"));
+});
+
+/* ------------------------------------------------------------ Keine Abhaengigkeit */
+
+test("es gibt keine Abhaengigkeit und keinen Bauschritt", () => {
+  // Jede Abhaengigkeit waere ein weiterer Herausgeber von Code, der im Pane laeuft - wo
+  // Betreff, Klartext und ein Token durchgehen. Die package.json ist zulaessig, aber
+  // nur in einer Gestalt: ohne Abhaengigkeit und ohne Bauschritt.
+  for (const verboten of ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "node_modules"]) {
+    assert.ok(!existiert(join(WURZEL, verboten)), `${verboten} liegt im Repository`);
+  }
+
+  const paket = JSON.parse(lies(join(WURZEL, "package.json")));
+  for (const feld of ["dependencies", "devDependencies", "peerDependencies",
+    "optionalDependencies"]) {
+    assert.ok(!paket[feld] || Object.keys(paket[feld]).length === 0,
+      `package.json fuehrt ${feld} - damit gaebe es etwas zu installieren`);
+  }
+  assert.deepEqual(Object.keys(paket.scripts || {}), ["test"],
+    "ein Bauschritt gehoert nicht dazu - ausgeliefert wird, was hier liegt");
+  assert.equal(paket.type, "module",
+    'ohne "type": "module" laedt der Testlaeufer die Dateien als CommonJS');
+});
+
+function existiert(pfad) {
+  try {
+    statSync(pfad);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* --------------------------------------------------------------- Das Manifest */
+
+test("jedes Symbol, auf das die Manifestvorlage zeigt, liegt auch da", () => {
+  // Ein Manifest, das auf eine fehlende Datei zeigt, ist gueltig und sieht richtig aus.
+  // Outlook zeigt dann einen Platzhalter im Menueband - und niemand kommt darauf, dass
+  // die Ursache eine Datei ist, die beim Umbenennen vergessen wurde.
+  const vorlage = lies(join(WURZEL, "tools", "ManifestGenerator", "manifest.xml.tmpl"));
+  const verweise = [...vorlage.matchAll(/\$\{base_url\}\/(assets\/[A-Za-z0-9._-]+)/g)]
+    .map((treffer) => treffer[1]);
+
+  assert.ok(verweise.length >= 5, `nur ${verweise.length} Symbolverweise - stimmt die Vorlage?`);
+  for (const verweis of new Set(verweise)) {
+    assert.ok(existiert(join(TASKPANE, verweis)),
+      `Die Manifestvorlage zeigt auf ${verweis}, dort liegt aber nichts.`);
+  }
+});
+
+test("das Menue der Mailansicht traegt zwei unterscheidbare Eintraege", () => {
+  // Zwei Eintraege mit demselben Symbol oder derselben Adresse waeren eine Auswahl, die
+  // keine ist - und das faellt erst auf, wenn jemand beide ausprobiert.
+  const vorlage = lies(join(WURZEL, "tools", "ManifestGenerator", "manifest.xml.tmpl"));
+
+  const menues = (vorlage.match(/xsi:type="Menu"/g) || []).length;
+  assert.equal(menues, 1, "erwartet wird genau ein Aufklappmenue");
+
+  const eintraege = [...vorlage.matchAll(/<Item id="([^"]+)"/g)].map((t) => t[1]);
+  assert.equal(eintraege.length, 2, `Eintraege: ${eintraege}`);
+
+  const inMenu = vorlage.slice(vorlage.indexOf("<Items>"), vorlage.indexOf("</Items>"));
+  const symbole = [...inMenu.matchAll(/resid="(i[A-Za-z]+\d+)"/g)].map((t) => t[1]);
+  assert.equal(new Set(symbole).size, symbole.length,
+    `zwei Eintraege teilen sich ein Symbol: ${symbole}`);
+
+  const ziele = [...inMenu.matchAll(/<SourceLocation resid="([^"]+)"/g)].map((t) => t[1]);
+  assert.equal(new Set(ziele).size, ziele.length, `zwei Eintraege zeigen auf ${ziele}`);
+});
+
+test("die Beschriftungen im Menueband tragen echte Umlaute", () => {
+  // Sie liest der Benutzer. Die Umlautregel dieses Repos gilt fuer Quelltextkommentare,
+  // nicht fuer Anzeigetexte - dort sieht "anhaengen" nach einem Fehler aus.
+  const vorlage = lies(join(WURZEL, "tools", "ManifestGenerator", "manifest.xml.tmpl"));
+  const texte = [...vorlage.matchAll(/DefaultValue="([^"$]+)"/g)]
+    .map((treffer) => treffer[1])
+    .filter((text) => !text.startsWith("http") && !text.includes("assets/"));
+
+  assert.ok(texte.length >= 5, "kaum Anzeigetexte gefunden - stimmt die Vorlage?");
+  for (const text of texte) {
+    for (const ersatz of ["ae", "oe", "ue"]) {
+      assert.ok(!new RegExp(`[a-z]${ersatz}[a-z]`).test(text),
+        `Anzeigetext mit Umlautersatz: "${text}"`);
+    }
+  }
+});

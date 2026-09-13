@@ -1,0 +1,153 @@
+# Eigener vhost fuer das Taskpane.
+#
+# Das Add-in bekommt einen EIGENEN Namen, nicht einen Unterpfad des TANSS-Hosts. Der
+# Grund ist nicht Geschmack, sondern die Reichweite des Begriffs "Ursprung" (Schema +
+# Host + Port). An ihm haengen drei Dinge gleichzeitig:
+#
+#   1. `'self'` in der Richtlinie unten meint einen URSPRUNG, keinen Pfad. Laege das
+#      Pane unter demselben Namen wie TANSS, erlaubte `'self'` schlagartig jedes
+#      Skript und jedes Stylesheet, das dieser Name sonst noch ausliefert.
+#   2. Der oertliche Speicher ist je Ursprung getrennt, nicht je Pfad. Dort liegt das
+#      Anmeldetoken des Technikers. Im geteilten Ursprung kaeme jedes Skript der
+#      TANSS-Oberflaeche daran.
+#   3. `frame-ancestors` beginnt mit `'self'`. Im geteilten Ursprung duerfte jede Seite
+#      der TANSS-Oberflaeche das Pane in einen Rahmen ziehen.
+#
+# Es entsteht dadurch KEIN neuer Port und KEIN Dienst - nur ein zweiter Name auf
+# demselben Webserver, der ohnehin auf 443 lauscht.
+#
+#
+# --- Was vorher da sein muss ------------------------------------------------------
+#
+#   1. Ein DNS-Eintrag fuer <addon-hostname> auf diesen Server.
+#   2. Ein Zertifikat, das diesen Namen abdeckt. Ein Wildcard-Zertifikat auf die
+#      Domaene deckt ihn bereits ab - dann ist hier nichts weiter zu tun, und es
+#      koennen dieselben Dateien eingetragen werden, die der TANSS-vhost benutzt.
+#   3. sudo a2enmod headers ssl
+#
+# Danach:
+#   sudo apachectl configtest        # muss "Syntax OK" sagen
+#   sudo systemctl reload apache2
+#
+# Ein fehlgeschlagener Reload nimmt die TANSS-Oberflaeche mit. Deshalb IMMER erst
+# configtest.
+#
+#
+# --- Die beiden Platzhalter -------------------------------------------------------
+#
+#   <addon-hostname>  der Name dieses vhosts, z. B. addon.example.de
+#   <tanss-url>       Schema und Name der TANSS-Instanz OHNE Pfad,
+#                     z. B. https://tanss.example.de
+#
+# Der zweite steht in `connect-src`. Fehlt er dort, scheitert JEDER Aufruf an die
+# TANSS-API - und zwar leise: Der Browser meldet es nur in seiner eigenen Konsole, das
+# Pane zeigt "nicht erreichbar". Derselbe Wert gehoert in `apiBase` der config.json.
+
+
+<VirtualHost *:80>
+    ServerName <addon-hostname>
+
+    # Haelt die automatische Zertifikatserneuerung am Laufen. Das Verzeichnis muss
+    # existieren:  sudo mkdir -p /var/www/certbot
+    Alias /.well-known/acme-challenge/ /var/www/certbot/.well-known/acme-challenge/
+    <Directory /var/www/certbot/.well-known/acme-challenge/>
+        Require all granted
+    </Directory>
+
+    RedirectMatch permanent "^/(?!\.well-known/acme-challenge/)(.*)" "https://<addon-hostname>/$1"
+</VirtualHost>
+
+
+<VirtualHost *:443>
+    ServerName <addon-hostname>
+
+    SSLEngine on
+    SSLCertificateFile    /etc/letsencrypt/live/<addon-hostname>/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/<addon-hostname>/privkey.pem
+    SSLProtocol -all +TLSv1.2 +TLSv1.3
+
+    DocumentRoot /var/www/tanss-outlook-addin
+
+    # Wohin die Dateien gehoeren:
+    #
+    #   sudo mkdir -p /var/www/tanss-outlook-addin
+    #   sudo rsync -a --delete taskpane/ /var/www/tanss-outlook-addin/
+    #   sudo cp manifest.xml /var/www/tanss-outlook-addin/
+    #   sudo cp /var/www/tanss-outlook-addin/config.example.json \
+    #           /var/www/tanss-outlook-addin/config.json
+    #   # jetzt config.json bearbeiten - siehe README
+    #   sudo chown -R root:www-data /var/www/tanss-outlook-addin
+    #   sudo find /var/www/tanss-outlook-addin -type d -exec chmod 750 {} +
+    #   sudo find /var/www/tanss-outlook-addin -type f -exec chmod 640 {} +
+    <Directory /var/www/tanss-outlook-addin>
+        Require all granted
+
+        # Kein Verzeichnisinhalt. Ohne das listet Apache bei fehlender index.html den
+        # ganzen Ordner auf - einschliesslich config.json und manifest.xml.
+        Options -Indexes -ExecCGI -Includes
+        AllowOverride None
+    </Directory>
+
+    # --- Die Kopfzeile, an der alles haengt ---------------------------------------
+    #
+    # Outlook zeigt das Taskpane in einem Rahmen FREMDER Herkunft an. Eine Kopfzeile
+    # `X-Frame-Options` - gleich welchen Wertes - laesst das Pane weiss bleiben, und
+    # zwar ohne Fehlermeldung, die irgendwo auftauchte: Der Techniker sieht einen
+    # leeren Bereich und meldet "das Add-in geht nicht".
+    #
+    # Die Zeile steht hier vorsorglich: Setzt eine uebergeordnete Konfiguration sie
+    # global, nimmt dieser vhost sie wieder heraus. `always` ist noetig, damit das auch
+    # fuer Fehlerantworten gilt.
+    #
+    # Begrenzt wird die Einbettung stattdessen durch `frame-ancestors` - kein Verzicht
+    # auf Schutz, sondern der Tausch eines groben Schalters gegen eine Liste.
+    Header always unset X-Frame-Options
+
+    # --- Inhaltsrichtlinie --------------------------------------------------------
+    #
+    # Diese Kopfzeile traegt die Direktiven, die von der Ablage abhaengen; die
+    # unveraenderlichen stehen zusaetzlich als <meta> in der index.html. Beide gelten
+    # gleichzeitig, und je Direktive gewinnt die strengere.
+    #
+    # `connect-src` nennt vier Ziele und kein fuenftes:
+    #   'self'                          die eigenen Dateien
+    #   <tanss-url>                     die TANSS-API - OHNE diesen Eintrag geht nichts
+    #   login.microsoftonline.com       die Anmeldung, die das Originalformat der
+    #   graph.microsoft.com             Nachricht zugaenglich macht
+    #
+    # Ist in der config.json keine Anwendungs-Id hinterlegt, werden die letzten beiden
+    # nie angesprochen; sie schaden dann nicht und ersparen eine Aenderung, wenn die
+    # Id nachgereicht wird.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://appsforoffice.microsoft.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' <tanss-url> https://login.microsoftonline.com https://graph.microsoft.com; frame-src https://login.microsoftonline.com; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self' https://*.office.com https://*.office365.com https://*.officeapps.live.com https://*.outlook.com https://*.microsoft365.com https://*.cloud.microsoft"
+
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "no-referrer"
+
+    # Zwei Jahre. ACHTUNG bei `includeSubDomains` auf einem geteilten Namensraum: Waere
+    # dieser Name ein Elternname des TANSS-Namens, zwaenge die Anweisung auch TANSS
+    # dauerhaft auf https - im Browser jedes Benutzers, der das Pane einmal geladen
+    # hat. Bei zwei Geschwisternamen (addon.* und tanss.*) ist das nicht der Fall.
+    Header always set Strict-Transport-Security "max-age=63072000" env=HTTPS
+
+    # --- Was nie zwischengespeichert werden darf ----------------------------------
+    #
+    # Beide Dateien sind der Hebel des Administrators. Laege eine davon im
+    # Zwischenspeicher des Browsers, gaelte eine Aenderung erst, wenn der
+    # Zwischenspeicher es zulaesst - und niemand wuesste, wann das ist.
+    <LocationMatch "^/(config\.json|manifest\.xml)$">
+        Header always set Cache-Control "no-store, must-revalidate"
+    </LocationMatch>
+
+    # --- Was lange zwischengespeichert werden darf --------------------------------
+    #
+    # Diese beiden Ordner tragen versionsfeste Dateinamen. Alles andere wird bei jedem
+    # Oeffnen neu erfragt; ohne das haengt nach einer Aktualisierung ein Teil der
+    # Techniker auf der alten Fassung, und zwar genau so lange, wie es niemandem
+    # auffaellt.
+    <LocationMatch "^/(vendor|assets)/">
+        Header always set Cache-Control "public, max-age=31536000, immutable"
+    </LocationMatch>
+
+    ErrorLog  ${APACHE_LOG_DIR}/tanss-outlook-addin-error.log
+    CustomLog ${APACHE_LOG_DIR}/tanss-outlook-addin-access.log combined
+</VirtualHost>
