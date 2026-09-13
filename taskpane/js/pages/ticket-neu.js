@@ -851,7 +851,7 @@ export async function render(ctx) {
       form.set("eml", mail.data.blob, mail.data.filename);
       form.set("internetMessageId", mail.data.internetMessageId || "");
       form.set("subject", mail.data.subject || "");
-        for (const warning of mail.data.warnings) {
+      for (const warning of mail.data.warnings) {
         ui.mount(notices, ui.banner({ tone: "warn", label: warning }));
       }
     }
