@@ -311,13 +311,15 @@ export class TanssRepository {
     const rules = await this._fieldRules(
       { companyId, typeId, assigneeId, departmentId, failures, signal });
     const [types, states, technicians, departments] = await Promise.all([
-      // Dieselbe Adminroute-Form wie bei den Status, und dasselbe Verhalten bei Ausfall.
+      // Die Typenliste liegt auf der ERP-Flaeche, nicht neben den Ticketstatus - eine
+      // Unsymmetrie der Schnittstelle, kein Versehen hier. Ein `rank` fuehrt sie nicht;
+      // die Reihenfolge kommt deshalb vom Server und wird nicht umsortiert.
+      //
       // Die Typen gehoeren NICHT in das Manifest: Ein dort eingetragener Typ altert - ein
       // in TANSS neu angelegter oder umbenannter kaeme nie an, ohne dass jemand ein
       // Manifest erzeugt, die Version erhoeht und neu ausrollt.
-      this._list("/api/v1/admin/ticketTypes", signal, (raw) => raw
+      this._list("/api/erp/v1/tickets/types", signal, (raw) => raw
         .filter((item) => item && item.id && item.active !== false)
-        .sort((a, b) => num(a.rank) - num(b.rank))
         .map(namedId), failures),
       this._list("/api/v1/admin/ticketStates", signal, (raw) => raw
         .filter((item) => item && item.id && item.active !== false)

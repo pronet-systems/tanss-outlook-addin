@@ -598,8 +598,10 @@ test("die Tickettypen kommen aus TANSS, nicht aus der Konfiguration", async () =
   // vergehen bis zu 72 Stunden.
   const client = {
     calls: [],
-    get: async (pfad) => (pfad === "/api/v1/admin/ticketTypes"
-      ? [{ id: 2, name: "Anfrage", rank: 2 }, { id: 1, name: "Störung", rank: 1 }]
+    get: async (pfad) => (pfad === "/api/erp/v1/tickets/types"
+      ? [{ id: 1, name: "Störung", active: true },
+        { id: 2, name: "Anfrage", active: true },
+        { id: 3, name: "Stillgelegt", active: false }]
       : []),
     put: async () => ({ content: {}, meta: {} }),
     post: async () => ({}),
@@ -611,7 +613,7 @@ test("die Tickettypen kommen aus TANSS, nicht aus der Konfiguration", async () =
   }).ticketOptions({});
 
   assert.deepEqual(options.types, [{ id: 1, name: "Störung" }, { id: 2, name: "Anfrage" }],
-    "die API sticht die Konfiguration, und die Reihenfolge folgt dem Rang");
+    "die API sticht die Konfiguration, und ein stillgelegter Typ wird nicht angeboten");
 });
 
 test("faellt die Typenroute aus, springt die Konfiguration ein und der Grund steht da", async () => {
@@ -620,7 +622,7 @@ test("faellt die Typenroute aus, springt die Konfiguration ein und der Grund ste
   const client = {
     calls: [],
     get: async (pfad) => {
-      if (pfad === "/api/v1/admin/ticketTypes") throw new ApiError("INTERNAL", "weg", { status: 404 });
+      if (pfad === "/api/erp/v1/tickets/types") throw new ApiError("INTERNAL", "weg", { status: 404 });
       return [];
     },
     put: async () => ({ content: {}, meta: {} }),
@@ -633,7 +635,7 @@ test("faellt die Typenroute aus, springt die Konfiguration ein und der Grund ste
   }).ticketOptions({});
 
   assert.deepEqual(options.types, [{ id: 9, name: "Aus der Datei" }]);
-  assert.ok(options.failures.some((f) => f.path === "/api/v1/admin/ticketTypes" && /404/.test(f.reason)));
+  assert.ok(options.failures.some((f) => f.path === "/api/erp/v1/tickets/types" && /404/.test(f.reason)));
 });
 
 test("ohne Route und ohne Konfiguration bleibt die Typenliste leer", async () => {

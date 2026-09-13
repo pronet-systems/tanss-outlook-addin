@@ -492,7 +492,7 @@ Tickettypen ändern sich im Betrieb — sie kommen aus der API.
 | `features.createSupport` | Selbst Einsätze anlegen. **Nur** in einer Installation ohne Kalendersynchronisation einschalten — sonst entstehen zwei Einträge je Termin. |
 | `features.graphMail` | Die Nachricht über Microsoft Graph holen. Braucht `entra.clientId`. |
 | `defaults.*` | Vorbelegung von Einsatzart, Ort, Intern-Kennzeichen und Tickettyp. |
-| `ticketTypes` | **Nur ein Rückfall.** Geholt werden die Tickettypen aus TANSS selbst (`/api/v1/admin/ticketTypes`); dieser Schlüssel gilt erst, wenn diese Route nichts liefert. Leer und ohne Route: Die Ticketmaske zeigt kein Typfeld. |
+| `ticketTypes` | **Nur ein Rückfall.** Geholt werden die Tickettypen aus TANSS selbst (`/api/erp/v1/tickets/types`); dieser Schlüssel gilt erst, wenn diese Route nichts liefert. Leer und ohne Route: Die Ticketmaske zeigt kein Typfeld. |
 
 ---
 
