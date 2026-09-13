@@ -171,6 +171,7 @@ public partial class MainWindow : Window
         supportUrl: SupportFeld.Text,
         entraClientId: EntraFeld.Text,
         tenantHint: MandantFeld.Text,
+        ticketTypes: TypenFeld.Text,
         embedTanssInUrl: AdresseEinbetten.IsChecked == true);
 
     /// <summary>Ein Prüfergebnis, wie die Liste es zeigt.</summary>
@@ -193,6 +194,7 @@ public partial class MainWindow : Window
     {
         var feld = error.Field switch
         {
+            nameof(Options.TicketTypes) => TypenFeld,
             nameof(Options.AddinBase) => AblageFeld,
             nameof(Options.TanssApi) => TanssFeld,
             nameof(Options.TanssFrontend) => OberflaecheFeld,

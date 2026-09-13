@@ -223,3 +223,68 @@ test("was keine Kennung ist, wird verworfen statt weitergereicht", async () => {
   assert.equal(isClientId(""), false);
   assert.equal(isClientId(null), false);
 });
+
+/* ---------------------------------------------------------------- Tickettypen */
+
+/** Setzt die Adresse des Panes, aus der die Konfiguration ihre Parameter liest. */
+function adresse(query) {
+  globalThis.location = { href: `https://pane.example.org/${query}`, search: query };
+}
+
+test("die Tickettypen kommen aus der Adresse, wenn das Manifest sie mitgibt", async () => {
+  // Auf einer gemeinsam genutzten Ablage ist die config.json fuer alle Kunden dieselbe
+  // und laesst `ticketTypes` leer. Tickettypen sind aber kundenspezifisch - sie muessen
+  // denselben Weg nehmen wie die TANSS-Adresse, sonst ist das Feld strukturell tot.
+  adresse("?typen=" + encodeURIComponent("1:Störung,2:Anfrage"));
+  serve({ body: JSON.stringify({ apiBase: "https://tanss.example.org" }) });
+  const geladen = await load();
+  assert.deepEqual(geladen.ticketTypes, [
+    { id: 1, name: "Störung" },
+    { id: 2, name: "Anfrage" },
+  ]);
+});
+
+test("ein unlesbarer Eintrag wird uebergangen, nicht halb uebernommen", async () => {
+  // Ein Tickettyp ohne Kennung waere in der Auswahlliste sichtbar und beim Anlegen
+  // wirkungslos: Der Techniker waehlte etwas aus, das nichts tut.
+  adresse("?typen=" + encodeURIComponent("1:Störung,kaputt,:leer,7:,0:Null,3:Beratung"));
+  serve({ body: "{}" });
+  const geladen = await load();
+  assert.deepEqual(geladen.ticketTypes, [
+    { id: 1, name: "Störung" },
+    { id: 3, name: "Beratung" },
+  ]);
+});
+
+test("ein Name mit Doppelpunkt bleibt heil", async () => {
+  // Getrennt wird am ERSTEN Doppelpunkt. Sonst hiesse der Typ "Vor-Ort" statt
+  // "Vor-Ort: Einsatz".
+  adresse("?typen=" + encodeURIComponent("4:Vor-Ort: Einsatz"));
+  serve({ body: "{}" });
+  const geladen = await load();
+  assert.deepEqual(geladen.ticketTypes, [{ id: 4, name: "Vor-Ort: Einsatz" }]);
+});
+
+test("eine doppelte Kennung erscheint nur einmal", async () => {
+  adresse("?typen=" + encodeURIComponent("1:Störung,1:Nochmal"));
+  serve({ body: "{}" });
+  const geladen = await load();
+  assert.deepEqual(geladen.ticketTypes, [{ id: 1, name: "Störung" }]);
+});
+
+test("ohne Parameter bleibt die Liste der Datei unangetastet", async () => {
+  // Wer eine eigene Ablage betreibt, traegt die Typen weiterhin in die config.json ein.
+  adresse("");
+  serve({ body: JSON.stringify({ ticketTypes: [{ id: 9, name: "Aus der Datei" }] }) });
+  const geladen = await load();
+  assert.deepEqual(geladen.ticketTypes, [{ id: 9, name: "Aus der Datei" }]);
+});
+
+test("ein durchweg unlesbarer Parameter laesst die Datei gelten", async () => {
+  // Nichts Lesbares heisst NICHT "keine Typen": Sonst loeschte ein Tippfehler im Manifest
+  // eine gueltige Liste aus der Datei, und niemand saehe warum.
+  adresse("?typen=" + encodeURIComponent("voelliger,unsinn"));
+  serve({ body: JSON.stringify({ ticketTypes: [{ id: 9, name: "Aus der Datei" }] }) });
+  const geladen = await load();
+  assert.deepEqual(geladen.ticketTypes, [{ id: 9, name: "Aus der Datei" }]);
+});

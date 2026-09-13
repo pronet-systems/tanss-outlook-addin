@@ -95,9 +95,26 @@ public sealed record Options
             {
                 teile.Add($"entra={Uri.EscapeDataString(EntraClientId)}");
             }
+            if (TicketTypes.Count > 0)
+            {
+                var liste = string.Join(",", TicketTypes.Select(t => $"{t.Id}:{t.Name}"));
+                teile.Add($"typen={Uri.EscapeDataString(liste)}");
+            }
             return teile.Count == 0 ? basis : $"{basis}?{string.Join("&", teile)}";
         }
     }
+
+    /// <summary>
+    /// Die Tickettypen dieser Installation.
+    /// </summary>
+    /// <remarks>
+    /// Sie wandern als Parameter in die Seitenadresse und NICHT in die config.json. Auf
+    /// einer gemeinsam genutzten Ablage ist jene Datei fuer alle Kunden dieselbe; ein
+    /// kundenspezifischer Wert kann dort nicht stehen. Ueber das Manifest bringt ihn jeder
+    /// Kunde selbst mit - denselben Weg nehmen bereits die TANSS-Adresse und die
+    /// Anwendungs-Id.
+    /// </remarks>
+    public IReadOnlyList<TicketType> TicketTypes { get; init; } = [];
 
     /// <summary>Die Basis fuer Symbole - sie darf niemals einen Parameter tragen.</summary>
     public string AssetBase => AddinBase.GetLeftPart(UriPartial.Path).TrimEnd('/');
@@ -119,6 +136,7 @@ public sealed record Options
         string supportUrl,
         string entraClientId,
         string tenantHint,
+        string ticketTypes,
         bool embedTanssInUrl)
     {
         var basis = RequireHttps(nameof(AddinBase), addinBase);
@@ -141,6 +159,7 @@ public sealed record Options
 
         return new Options
         {
+            TicketTypes = ParseTicketTypes(ticketTypes),
             AddinBase = basis,
             TanssApi = api,
             TanssFrontend = frontend,
@@ -164,6 +183,69 @@ public sealed record Options
     /// Techniker tippt sein TANSS-Kennwort hinein - ueber http liefe es im Klartext.
     /// Eine solche Adresse wird deshalb verweigert statt stillschweigend eingesetzt.
     /// </summary>
+    /// <summary>
+    /// Liest die Tickettypen aus dem Eingabefeld - eine Zeile je Typ, `Kennung=Name`.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ein Komma im Namen wird zurueckgewiesen und nicht etwa entfernt: Es trennt in der
+    /// Seitenadresse die Eintraege, und ein stillschweigend veraenderter Name stuende
+    /// spaeter anders im Pane als hier im Feld. Lieber eine Beanstandung beim Erzeugen als
+    /// ein Tickettyp, der anders heisst, als der Administrator ihn geschrieben hat.
+    /// </para>
+    /// <para>
+    /// Ein Doppelpunkt im Namen ist dagegen erlaubt - das Pane trennt am ERSTEN.
+    /// </para>
+    /// </remarks>
+    private static List<TicketType> ParseTicketTypes(string? eingabe)
+    {
+        var ergebnis = new List<TicketType>();
+        if (string.IsNullOrWhiteSpace(eingabe)) return ergebnis;
+
+        foreach (var rohzeile in eingabe.Split('\n'))
+        {
+            var zeile = rohzeile.Trim();
+            if (zeile.Length == 0) continue;
+
+            var trenner = zeile.IndexOf('=');
+            if (trenner < 1)
+            {
+                throw new OptionsError(nameof(TicketTypes),
+                    $"Die Zeile \"{zeile}\" hat keine Form \"Kennung=Name\". Beispiel: 1=Störung");
+            }
+
+            var kennung = zeile[..trenner].Trim();
+            var name = zeile[(trenner + 1)..].Trim();
+
+            if (!int.TryParse(kennung, out var id) || id <= 0)
+            {
+                throw new OptionsError(nameof(TicketTypes),
+                    $"\"{kennung}\" ist keine Tickettyp-Kennung. Erwartet wird eine "
+                    + "positive Zahl, wie sie in TANSS am Tickettyp steht.");
+            }
+            if (name.Length == 0)
+            {
+                throw new OptionsError(nameof(TicketTypes),
+                    $"Der Tickettyp {id} hat keinen Namen.");
+            }
+            if (name.Contains(','))
+            {
+                throw new OptionsError(nameof(TicketTypes),
+                    $"Der Name \"{name}\" enthält ein Komma. Das Komma trennt die Typen in "
+                    + "der Adresse des Panes und kann deshalb nicht im Namen stehen.");
+            }
+            if (ergebnis.Any(t => t.Id == id))
+            {
+                throw new OptionsError(nameof(TicketTypes),
+                    $"Die Kennung {id} kommt zweimal vor.");
+            }
+
+            ergebnis.Add(new TicketType(id, name));
+        }
+
+        return ergebnis;
+    }
+
     private static Uri RequireHttps(string field, string raw)
     {
         var value = (raw ?? "").Trim();
@@ -221,3 +303,8 @@ public sealed record Options
         }
     }
 }
+
+/// <summary>Ein Tickettyp, wie ihn die Ticketmaske zur Auswahl stellt.</summary>
+/// <param name="Id">Die Kennung, wie sie in TANSS am Tickettyp steht.</param>
+/// <param name="Name">Was der Techniker in der Auswahlliste liest.</param>
+public sealed record TicketType(int Id, string Name);

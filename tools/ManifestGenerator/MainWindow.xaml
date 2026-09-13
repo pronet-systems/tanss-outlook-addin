@@ -77,7 +77,9 @@
             <TextBlock Style="{StaticResource Beschriftung}" Text="Support-Adresse"/>
             <TextBox x:Name="SupportFeld"/>
             <TextBlock Style="{StaticResource Hinweis}"
-                       Text="Leer lassen, um die Ablage-Adresse zu verwenden."/>
+                       Text="Wohin sich Ihre Techniker wenden, wenn das Add-in Ärger macht. Outlook und das Admin Center bieten diese Adresse als Hilfe an; das Manifest verlangt sie. Sinnvoll ist Ihr eigener Servicedesk — nicht die Ablage."/>
+            <TextBlock Style="{StaticResource Hinweis}"
+                       Text="Leer lassen setzt die Ablage-Adresse ein. Das ist zulässig, führt Ihre Techniker aber auf die Projektseite statt zu Ihnen."/>
 
             <TextBlock Style="{StaticResource Beschriftung}" Text="Entra-Anwendungs-Id"/>
             <TextBox x:Name="EntraFeld"/>
@@ -88,6 +90,14 @@
             <TextBox x:Name="MandantFeld"/>
             <TextBlock Style="{StaticResource Hinweis}"
                        Text="Ihre Microsoft-365-Domäne, z. B. beispiel.de — oder die Verzeichnis-ID. Steht nicht im Manifest und ändert am Add-in nichts. Ohne diese Angabe können die beiden Entra-Prüfungen nichts feststellen: Der Anmeldedienst weist eine Anfrage ohne Browsersitzung ab, bevor er die Anwendungs-Id ansieht."/>
+
+            <TextBlock Style="{StaticResource Beschriftung}" Text="Tickettypen"/>
+            <TextBox x:Name="TypenFeld" AcceptsReturn="True" TextWrapping="NoWrap"
+                     MinHeight="72" VerticalScrollBarVisibility="Auto"/>
+            <TextBlock Style="{StaticResource Hinweis}"
+                       Text="Eine Zeile je Typ, in der Form 1=Störung. Die Kennung steht in TANSS am Tickettyp. Leer lassen, wenn die Ticketmaske kein Typfeld zeigen soll — TANSS nimmt ein Ticket ohne Typ an."/>
+            <TextBlock Style="{StaticResource Hinweis}"
+                       Text="Sie wandern in die Adresse des Panes, nicht in die config.json: Auf der gemeinsam genutzten Ablage ist jene Datei für alle Kunden dieselbe und kann nichts Kundenspezifisches tragen."/>
 
             <CheckBox x:Name="AdresseEinbetten" IsChecked="True" Margin="0,16,0,0"
                       Content="TANSS-Adresse in das Manifest schreiben"/>

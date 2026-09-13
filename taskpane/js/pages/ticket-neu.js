@@ -759,8 +759,13 @@ export async function render(ctx) {
 
   function renderOptions() {
     const options = state.options || {};
-    const typeSelect = ui.select({
-      options: toSelectOptions(options.types),
+    // Ohne Typen kein Typfeld. Ein Auswahlfeld ohne Auswahl sieht nach einem Ausfall aus
+    // und laedt zum Suchen ein, wo es nichts zu finden gibt - und TANSS nimmt ein Ticket
+    // ohne Typ an. Wer Typen anbieten will, gibt sie im Manifest mit; die Konfiguration
+    // taugt dafuer nur bei eigener Ablage.
+    const typen = Array.isArray(options.types) ? options.types : [];
+    const typeSelect = typen.length === 0 ? null : ui.select({
+      options: toSelectOptions(typen),
       value: state.typeId,
       placeholder: T.app.none,
       onChange: () => {
@@ -800,7 +805,7 @@ export async function render(ctx) {
 
     ui.replace(
       optionsBox,
-      ui.field({ label: T.ticketNeu.type, control: typeSelect }),
+      typeSelect ? ui.field({ label: T.ticketNeu.type, control: typeSelect }) : null,
       ui.field({ label: T.ticketNeu.status, control: statusSelect }),
       ui.field({
         label: T.ticketNeu.assignee,
