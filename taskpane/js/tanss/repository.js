@@ -175,15 +175,20 @@ export class TanssRepository {
       }),
       { retry: true, wantMeta: true, signal },
     );
-    // Stillgelegte Firmen werden nicht angeboten. Das Kennzeichen wurde bisher gelesen
-    // und nie benutzt: Ein Ticket auf eine stillgelegte Firma ist ein stiller Fehler, den
-    // erst die Rechnungsstellung findet - und die Maske bot sie an wie jede andere.
+    // Weder stillgelegte noch gesperrte Firmen werden angeboten. Beide Kennzeichen wurden
+    // bisher gelesen und nie benutzt.
+    //
+    // Sie bedeuten Verschiedenes und fuehren zum selben Schaden: Eine STILLGELEGTE Firma
+    // ergibt ein Ticket, das niemandem auffaellt, bis die Rechnungsstellung es findet. Bei
+    // einer GESPERRTEN nimmt TANSS selbst keinen Einsatz mehr an - der Vorgang scheitert
+    // also spaeter und an anderer Stelle, mit einer Meldung, die niemand auf die Firma
+    // zurueckfuehrt.
     //
     // Gefiltert wird HIER und nicht in der Maske: Das ist die einzige Tuer, durch die eine
     // Firma in einen Entwurf gelangt, und es gibt zwei Masken, die sie benutzen.
     const items = ((content || {}).companies || [])
       .map(companyRow)
-      .filter((row) => !row.inactive);
+      .filter((row) => !row.inactive && !row.lockout);
     return { items, tooMany: tooMany(meta) };
   }
 

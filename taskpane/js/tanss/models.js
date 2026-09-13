@@ -216,9 +216,14 @@ export function tooMany(meta) {
 /**
  * Eine Firma, wie die Auswahlliste sie zeigt.
  *
- * `inactive` reist mit, damit die Maske eine stillgelegte Firma kennzeichnen kann,
- * statt sie wie jede andere anzubieten - ein Ticket auf eine inaktive Firma ist ein
- * stiller Fehler, den erst die Rechnungsstellung findet.
+ * `displayId` ist die Kundennummer und keine Zierde: Ein Kunde mit mehreren Standorten
+ * fuehrt je Standort eine eigene - unter demselben Namen. Ohne sie waehlt der Techniker
+ * aus gleich aussehenden Zeilen.
+ *
+ * `inactive` und `lockout` reisen mit, damit die Suche sie gar nicht erst anbietet. Beide
+ * bedeuten Verschiedenes und fuehren zum selben Schaden: Eine stillgelegte Firma ergibt
+ * ein Ticket, das erst die Rechnungsstellung findet; bei einer gesperrten nimmt TANSS
+ * selbst keinen Einsatz mehr an, der Vorgang scheitert also spaeter und anderswo.
  */
 export function companyRow(item) {
   return {
@@ -228,6 +233,7 @@ export function companyRow(item) {
     postCode: str(item.postCode),
     displayId: str(item.displayId),
     inactive: Boolean(item.inactive),
+    lockout: Boolean(item.lockout),
   };
 }
 

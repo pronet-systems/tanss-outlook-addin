@@ -627,16 +627,19 @@ test("nur 1 bis 9 gelten als Stufe", () => {
 
 /* -------------------------------------------------------------- Firmensuche */
 
-test("eine stillgelegte Firma wird gar nicht erst angeboten", async () => {
-  // Das Kennzeichen wurde bisher gelesen und nie benutzt - der Kommentar kuendigte eine
-  // Kennzeichnung an, die es nie gab. Ein Ticket auf eine stillgelegte Firma ist ein
-  // stiller Fehler, den erst die Rechnungsstellung findet.
+test("stillgelegte und gesperrte Firmen werden gar nicht erst angeboten", async () => {
+  // Beide Kennzeichen wurden bisher gelesen und nie benutzt. Sie bedeuten Verschiedenes
+  // und fuehren zum selben Schaden: Eine stillgelegte Firma ergibt ein Ticket, das erst
+  // die Rechnungsstellung findet; bei einer gesperrten nimmt TANSS selbst keinen Einsatz
+  // mehr an - der Vorgang scheitert spaeter und anderswo, mit einer Meldung, die niemand
+  // auf die Firma zurueckfuehrt.
   const client = fakeClient({
     "PUT /api/v1/search": {
       content: {
         companies: [
           { id: 1, name: "Aktiv", displayId: "10023" },
           { id: 2, name: "Stillgelegt", displayId: "10024", inactive: true },
+          { id: 3, name: "Gesperrt", displayId: "10025", lockout: true },
         ],
       },
       meta: {},
