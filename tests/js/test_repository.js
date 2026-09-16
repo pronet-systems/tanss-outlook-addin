@@ -125,6 +125,34 @@ test("eine Ziffernfolge ist eine Ticketnummer und keine Suche", async () => {
   assert.equal(items[0].id, 4711);
 });
 
+test("eine Nummer ohne Ticket endet nicht bei \"nichts gefunden\"", async () => {
+  // Nicht jede Zahl ist eine Ticketnummer: eine Auftragsnummer, eine Seriennummer, eine
+  // Zahl aus dem Titel - oder eine Nummer, die es gibt, die dieser Mitarbeiter aber
+  // nicht sehen darf. Ohne den zweiten Versuch sieht der Techniker in all diesen Faellen
+  // eine leere Liste und hat keinen weiteren Weg.
+  const client = fakeClient({
+    "PUT /api/v1/tickets": { content: [], meta: {} },
+    "PUT /api/v1/search": { content: { tickets: [{ id: 99, title: "Auftrag 12345" }] }, meta: {} },
+  });
+  const { items } = await new TanssRepository({ client, config: {} }).searchTickets("12345");
+
+  assert.equal(client.calls[0].path, "/api/v1/tickets", "zuerst die Nummer nachschlagen");
+  assert.equal(client.calls[1].path, "/api/v1/search", "dann erst suchen");
+  assert.equal(client.calls[1].body.query, "12345");
+  assert.equal(items[0].id, 99);
+});
+
+test("eine Nummer mit Ticket kostet keinen zweiten Aufruf", async () => {
+  // Die Reihenfolge ist der Sinn der Sache: Wer eine Nummer eintippt, meint das Ticket
+  // dieser Nummer - nicht die Tickets, in deren Text die Zahl irgendwo vorkommt.
+  const client = fakeClient({
+    "PUT /api/v1/tickets": { content: [{ id: 12345, title: "Treffer" }], meta: {} },
+  });
+  const { items } = await new TanssRepository({ client, config: {} }).searchTickets("12345");
+  assert.equal(client.calls.length, 1);
+  assert.equal(items[0].id, 12345);
+});
+
 test("das Kaestchen \"Abgeschlossene einbeziehen\" erreicht die Volltextsuche", async () => {
   // Es erreichte sie NICHT: Der Wert ging nur in die Liste der Firmentickets ein, und
   // sobald jemand etwas eintippte, war das Kaestchen wirkungslos. Der Feldname stammt

@@ -237,8 +237,10 @@ export class TanssRepository {
    *
    * Drei Eingaben, drei Wege:
    *
-   * - **Nur Ziffern** - das ist eine Ticketnummer und keine Suche. Die Volltextsuche
-   *   faende die Nummer sonst nur, wenn sie zufaellig im Text vorkommt.
+   * - **Nur Ziffern** - das ist zuerst eine Ticketnummer und keine Suche. Die
+   *   Volltextsuche faende die Nummer sonst nur, wenn sie zufaellig im Text vorkommt.
+   *   Gibt es kein Ticket dieser Nummer, faellt die Eingabe in die Volltextsuche durch -
+   *   sonst endete jede Zahl, die keine Ticketnummer ist, bei "nichts gefunden".
    * - **Leer** - die offenen Tickets der Firma.
    * - **Sonst** - die Volltextsuche.
    *
@@ -257,7 +259,13 @@ export class TanssRepository {
     if (/^\d+$/.test(text)) {
       const items = await this.ticketsById([Number.parseInt(text, 10)],
         { attachedTicketIds, signal });
-      return { items, tooMany: false };
+      if (items.length > 0) return { items, tooMany: false };
+      // Kein Ticket unter dieser Nummer - dann war die Ziffernfolge keine Ticketnummer.
+      // Statt hier mit "nichts gefunden" zu enden, faellt die Eingabe in die
+      // Volltextsuche durch. Es gibt mehr als eine Zahl, die ein Techniker eintippt:
+      // eine Auftragsnummer, eine Seriennummer, eine Zahl aus dem Titel - und eine
+      // Nummer, die zwar existiert, aber fuer diesen Mitarbeiter nicht sichtbar ist.
+      // Der zusaetzliche Aufruf kostet nur in genau diesem Fall etwas.
     }
     if (!text) {
       const items = await this._ticketsOfCompany(companyId,
