@@ -118,8 +118,37 @@ test("eine Ziffernfolge ist eine Ticketnummer und keine Suche", async () => {
   });
   const { items } = await new TanssRepository({ client, config: {} }).searchTickets("4711");
   assert.equal(client.calls[0].path, "/api/v1/tickets");
-  assert.deepEqual(client.calls[0].body, { ids: [4711] });
+  // `includeDoneTickets` gehoert zum Nachschlagen einer Nummer und nicht zum
+  // Kontrollkaestchen: Ohne die Angabe filtert TANSS abgeschlossene Tickets heraus, und
+  // die Eingabe einer Nummer faende ihr eigenes Ticket nicht - gleich, was angehakt ist.
+  assert.deepEqual(client.calls[0].body, { ids: [4711], includeDoneTickets: true });
   assert.equal(items[0].id, 4711);
+});
+
+test("das Kaestchen \"Abgeschlossene einbeziehen\" erreicht die Volltextsuche", async () => {
+  // Es erreichte sie NICHT: Der Wert ging nur in die Liste der Firmentickets ein, und
+  // sobald jemand etwas eintippte, war das Kaestchen wirkungslos. Der Feldname stammt
+  // aus dem Erbauer der TANSS-Oberflaeche, nicht aus einer Vermutung.
+  const client = fakeClient({ "PUT /api/v1/search": { content: { tickets: [] }, meta: {} } });
+  const repository = new TanssRepository({ client, config: {} });
+
+  await repository.searchTickets("drucker", { includeDone: true });
+  assert.equal(client.calls[0].body.configs.ticket.searchInCompleted, true);
+
+  // Und in die andere Richtung, ausdruecklich: Das Kaestchen ist eine Aussage, auch
+  // wenn es leer bleibt. Ohne Angabe entschiede die Voreinstellung der Instanz.
+  await repository.searchTickets("drucker");
+  assert.equal(client.calls[1].body.configs.ticket.searchInCompleted, false);
+});
+
+test("die Liste der Firmentickets traegt denselben Wunsch unter ihrem Namen", async () => {
+  // Zwei Routen, zwei Namen, dieselbe Frage: Die Liste kennt `includeDoneTickets`, die
+  // Volltextsuche `searchInCompleted`. Wer nur einen der beiden setzt, baut ein
+  // Kaestchen, das je nach Eingabe wirkt oder nicht.
+  const client = fakeClient({ "PUT /api/v1/tickets": { content: [], meta: {} } });
+  await new TanssRepository({ client, config: {} })
+    .searchTickets("", { companyId: 3, includeDone: true });
+  assert.equal(client.calls[0].body.includeDoneTickets, true);
 });
 
 test("eine leere Suche ohne Firma fragt gar nicht erst", async () => {

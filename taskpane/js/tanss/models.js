@@ -65,11 +65,24 @@ export function employeeConfig({ maxResults, companyId }) {
   return { ...clean({ maxResults, companyId }), inactive: false };
 }
 
-/** Suchbereich Tickets. Die Vorschaulaenge wird IMMER gesetzt - siehe PREVIEW_CHARS. */
-export function ticketConfig({ maxResults, companyId }) {
+/**
+ * Suchbereich Tickets. Die Vorschaulaenge wird IMMER gesetzt - siehe PREVIEW_CHARS.
+ *
+ * `searchInCompleted` traegt das Kontrollkaestchen "Abgeschlossene einbeziehen" in die
+ * Volltextsuche. Es fehlte hier, und damit blieb das Kaestchen wirkungslos, sobald
+ * jemand etwas eintippte: Der Wert ging nur in die Liste der Firmentickets ein, die
+ * ohne Suchbegriff erscheint. Der Name ist nicht geraten - er steht so im Erbauer der
+ * TANSS-Oberflaeche (`searchInCompletedTickets(e)` setzt `cfg.searchInCompleted`).
+ *
+ * Gesendet wird er in BEIDE Richtungen, auch als `false`. Das Kaestchen ist eine
+ * Aussage des Technikers, und sie gilt auch dann, wenn die Instanz ohne Angabe etwas
+ * anderes voreingestellt haette.
+ */
+export function ticketConfig({ maxResults, companyId, includeDone = false }) {
   return {
     ...clean({ maxResults, companyId }),
     previewContentMaxChars: PREVIEW_CHARS,
+    searchInCompleted: includeDone === true,
   };
 }
 

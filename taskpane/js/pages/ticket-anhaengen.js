@@ -171,7 +171,11 @@ export async function render(ctx) {
         q: state.term,
         companyId: state.scope === SCOPE_COMPANY && state.company ? state.company.id : null,
         scope: state.scope,
-        includeDone: state.includeDone ? "true" : "false",
+        // Als Wahrheitswert, nicht als Wort: Der Verteiler reicht diese Angaben
+        // unveraendert an die Fachschicht weiter, und von dort geht sie als
+        // `includeDoneTickets` in den Koerper der Anfrage. Die Zeichenkette "false" ist
+        // dort ein gesetzter Wert und kein Nein.
+        includeDone: state.includeDone,
         limit: 25,
         // Ohne die Message-Id kann der Dienst `alreadyHasThisMail` nicht ableiten: seine
         // Dublettentabelle ist auf deren Hash geschluesselt. Fehlte sie, waere die

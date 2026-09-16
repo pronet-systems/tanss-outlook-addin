@@ -241,6 +241,12 @@ export class TanssRepository {
    *   faende die Nummer sonst nur, wenn sie zufaellig im Text vorkommt.
    * - **Leer** - die offenen Tickets der Firma.
    * - **Sonst** - die Volltextsuche.
+   *
+   * `includeDone` erreicht alle drei, aber auf zwei verschiedene Weisen: Die Liste der
+   * Firmentickets kennt `includeDoneTickets`, die Volltextsuche `searchInCompleted` -
+   * zwei Routen, zwei Namen, dieselbe Frage. Das Nachschlagen einer Nummer schliesst
+   * abgeschlossene Tickets IMMER ein und fragt gar nicht erst; die Begruendung steht an
+   * `ticketsById`.
    */
   async searchTickets(query, {
     companyId = null, limit = 25, includeDone = false,
@@ -264,7 +270,7 @@ export class TanssRepository {
       searchRequest({
         areas: ["TICKET"],
         query: text,
-        configs: { ticket: ticketConfig({ maxResults: limit, companyId }) },
+        configs: { ticket: ticketConfig({ maxResults: limit, companyId, includeDone }) },
       }),
       { retry: true, wantMeta: true, signal },
     );
@@ -274,12 +280,24 @@ export class TanssRepository {
     };
   }
 
-  /** Tickets zu bekannten Nummern - ein Aufruf fuer beliebig viele. */
+  /**
+   * Tickets zu bekannten Nummern - ein Aufruf fuer beliebig viele.
+   *
+   * `includeDoneTickets` steht hier fest auf `true` und haengt bewusst NICHT am
+   * Kontrollkaestchen "Abgeschlossene einbeziehen". Der Unterschied ist der zwischen
+   * Suchen und Nachschlagen: Wer eine Nummer nennt, meint genau dieses Ticket, und
+   * dessen Zustand ist keine Auswahl, die er noch treffen wollte. Ohne die Angabe
+   * filtert TANSS abgeschlossene Tickets aus der Liste - dann findet die Eingabe einer
+   * Nummer ihr eigenes Ticket nicht, und auch die zuletzt benutzten verschwinden aus
+   * der Liste, sobald sie geschlossen werden. Genau das war zu beobachten.
+   *
+   * Der Zustand geht nicht verloren: Er steht als Marke an jeder Trefferzeile.
+   */
   async ticketsById(ids, { attachedTicketIds = new Set(), signal } = {}) {
     if (!ids || ids.length === 0) return [];
     const { content, meta } = await this.client.put(
       "/api/v1/tickets",
-      ticketListFilter({ ids }),
+      ticketListFilter({ ids, includeDoneTickets: true }),
       { retry: true, wantMeta: true, signal },
     );
     return this._rows(content || [], meta, attachedTicketIds);
