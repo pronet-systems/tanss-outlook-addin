@@ -586,6 +586,32 @@ kommt der Start nicht zum Ende.
 > (`telemetryservice.firstpartyapps.oaspapps.com`) wird dort **absichtlich** abgewiesen.
 > Er erscheint in dieser Liste und ist kein Befund.
 
+> Dasselbe gilt für einen Eintrag auf `eval`. Er gehört zu dieser Meldung in der
+> Browserkonsole, die es **nicht** zu untersuchen gilt:
+>
+> ```
+> MicrosoftAjax.js  Uncaught TypeError: Cannot read properties of undefined
+>                   (reading 'cannotDeserializeInvalidJson')
+>                       at Sys.Serialization.JavaScriptSerializer.deserialize
+>                       at Sys.CultureInfo._parse
+> ```
+>
+> `MicrosoftAjax.js` liest beim Laden seine Kulturtabelle mit `eval` ein. Die
+> Inhaltsrichtlinie dieses Panes führt kein `'unsafe-eval'`, also scheitert der Aufruf;
+> die Fehlerbehandlung von MicrosoftAjax greift daraufhin auf eine Variable zu, die in
+> derselben Datei erst weiter unten entsteht — daher der unverständliche Wortlaut
+> anstelle von „cannot deserialize invalid JSON".
+>
+> Das ist die gewollte Wirkung der Richtlinie und keine Störung: Die Bibliothek stammt
+> nicht von uns, das Pane ruft sie nirgends auf, und office.js lädt sie nur für seinen
+> Windows-Unterbau nach. Die Wege, die dieses Add-in benutzt, brauchen sie nicht.
+>
+> **`'unsafe-eval'` gehört deshalb nicht in die Richtlinie.** Es öffnete `eval` für die
+> ganze Seite — die Seite, auf der das TANSS-Token des Technikers liegt —, um eine
+> Kulturtabelle zu retten, die niemand liest. Zwei Wächter halten diesen Weg zu: Ein Test
+> fixiert `script-src` im meta-Element auf genau drei Herkünfte, ein zweiter hält
+> meta-Element und vhost-Vorlage deckungsgleich.
+
 **Bleibt diese Zeile leer und das Pane hängt trotzdem**, liegt es *nicht* an der
 Inhaltsrichtlinie — der Zuhörer im Pane horcht nur auf deren Verstöße. Dann kommt
 office.js aus einem anderen Grund nicht durch: ein abgelaufenes Zertifikat der Ablage, ein
