@@ -78,6 +78,7 @@ public static class Checks
 
         yield return await TanssReachable(options, cancel);
         yield return await CorsAllowed(options, cancel);
+        yield return await RefreshHeaderAllowed(options, cancel);
         yield return await Certificate(options.TanssApi, "TANSS", cancel);
 
         if (options.EntraClientId.Length > 0)
@@ -333,6 +334,73 @@ public static class Checks
             return new CheckResult("TANSS", name, Verdict.Fail,
                 $"Access-Control-Allow-Origin lautet \"{allowOrigin}\" und deckt "
                 + $"\"{origin}\" nicht ab.");
+        }
+        catch (Exception error) when (error is HttpRequestException or TaskCanceledException)
+        {
+            return new CheckResult("TANSS", name, Verdict.Unclear,
+                $"Die Vorabfrage blieb unbeantwortet: {Short(error)}");
+        }
+    }
+
+    /// <summary>
+    /// Laesst TANSS auch den Kopf zu, mit dem das Pane sein Token ERNEUERT?
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Eine eigene Pruefung, und zwar weil dieser Fehler eine Uhr hat statt eines
+    /// Zeitpunkts: Fehlt <c>refreshToken</c> in <c>Access-Control-Allow-Headers</c>,
+    /// funktionieren Anmeldung und jeder Fachaufruf - <c>apiToken</c> steht dort ja -,
+    /// und erst VIER STUNDEN spaeter, wenn das Zugriffstoken ablaeuft, ist jeder
+    /// Techniker gleichzeitig ausgesperrt. Ein Pilotbetrieb von einer Stunde findet das
+    /// nicht.
+    /// </para>
+    /// <para>
+    /// Eine EIGENE Vorabfrage, nicht der Kopf nebenan in der bestehenden: Manche
+    /// Gegenstellen beantworten eine Vorabfrage, die einen unzulaessigen Kopf nennt, gar
+    /// nicht mehr mit den CORS-Kopfzeilen. Beide Koepfe in einer Frage machten dann aus
+    /// einem Befund ueber die Erneuerung einen falschen Befund ueber den Fachzugriff.
+    /// </para>
+    /// </remarks>
+    private static async Task<CheckResult> RefreshHeaderAllowed(
+        Options options, CancellationToken cancel)
+    {
+        const string name = "Erneuerung des Tokens zugelassen";
+        var probe = new Uri(
+            $"{options.TanssApi.ToString().TrimEnd('/')}/api/v1/employees/ownState");
+        var origin = options.AddinBase.GetLeftPart(UriPartial.Authority);
+
+        using var client = Client();
+        using var request = new HttpRequestMessage(HttpMethod.Options, probe);
+        request.Headers.TryAddWithoutValidation("Origin", origin);
+        request.Headers.TryAddWithoutValidation("Access-Control-Request-Method", "GET");
+        request.Headers.TryAddWithoutValidation("Access-Control-Request-Headers", "refreshtoken");
+
+        try
+        {
+            using var response = await client.SendAsync(request, cancel);
+            var allowHeaders = Header(response, "Access-Control-Allow-Headers");
+
+            if (allowHeaders.Length == 0)
+            {
+                return new CheckResult("TANSS", name, Verdict.Unclear,
+                    $"Die Vorabfrage beantwortet TANSS mit HTTP {(int)response.StatusCode}, "
+                    + "aber ohne Access-Control-Allow-Headers. Ob die Erneuerung durchgeht, "
+                    + "laesst sich daraus nicht ablesen.");
+            }
+
+            if (allowHeaders.Contains("refreshtoken", StringComparison.OrdinalIgnoreCase))
+            {
+                return new CheckResult("TANSS", name, Verdict.Ok,
+                    "Der Kopf refreshToken ist zugelassen. Das Pane kann sein Token "
+                    + "selbsttaetig erneuern.");
+            }
+
+            return new CheckResult("TANSS", name, Verdict.Fail,
+                $"Der Kopf refreshToken fehlt in Access-Control-Allow-Headers "
+                + $"({allowHeaders}). Anmeldung und Fachaufrufe gehen damit, die "
+                + "Erneuerung nicht: Nach vier Stunden ist jeder Techniker ausgesperrt. "
+                + "Zu ergaenzen im vhost der TANSS-Instanz, der /backend ausliefert - "
+                + "Header always set Access-Control-Allow-Headers \"<bisherige Liste>,refreshToken\".");
         }
         catch (Exception error) when (error is HttpRequestException or TaskCanceledException)
         {
