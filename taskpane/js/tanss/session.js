@@ -20,6 +20,19 @@
  * Aufruf, den man dafuer stellt, wird also nicht beantwortet; deshalb steht dafuer eine
  * eigene, billige Route und nicht der gerade anstehende Fachaufruf.
  *
+ * Was dieser Kopf voraussetzt: Er ist ein EIGENER Kopf und loest damit eine
+ * CORS-Vorabfrage aus. Liegt das Pane auf einem anderen Ursprung als die API - bei einer
+ * gemeinsam genutzten Ablage ist das der Regelfall -, muss `refreshToken` in der
+ * Antwort-Kopfzeile `Access-Control-Allow-Headers` der TANSS-Instanz stehen. Steht er
+ * nicht darin, gelingen Anmeldung und alle Fachaufrufe (`apiToken` steht dort), aber die
+ * Erneuerung scheitert AUSNAHMSLOS - und zwar erst nach vier Stunden, wenn das erste
+ * Zugriffstoken ablaeuft. Zu pruefen ist das ohne Browser:
+ *
+ *   curl -si -X OPTIONS "<apiBase>/api/v1/employees/ownState" \
+ *     -H "Origin: <ursprung-des-panes>" \
+ *     -H "Access-Control-Request-Method: GET" \
+ *     -H "Access-Control-Request-Headers: refreshtoken" | grep -i allow-headers
+ *
  * Wo das liegt: `localStorage` des eigenen Ursprungs - und zwar bewusst, obwohl
  * `sessionStorage` weniger aufbewahrte. Ein Taskpane wird bei jedem Oeffnen neu
  * aufgebaut; mit `sessionStorage` stuende vor jedem Arbeitsschritt eine Anmeldung. Der
@@ -205,7 +218,16 @@ export class Session {
         query: { loggedInUserId: this.employeeId() },
       });
     } catch (error) {
-      throw new ApiError("CLIENT_NETWORK", "", { cause: error });
+      // `renew` als Kennzeichen, und zwar aus einem Grund, der im Betrieb teuer war:
+      // Ein Netzfehler AN DIESER STELLE sieht aus wie jeder andere, hat aber eine
+      // andere Behandlung. Ein gescheiterter Fachaufruf wird spaeter wieder gehen; eine
+      // gescheiterte Erneuerung dagegen kann dauerhaft unmoeglich sein - etwa wenn die
+      // Gegenstelle den Kopf `refreshToken` nicht durch die CORS-Vorabfrage laesst
+      // (`Access-Control-Allow-Headers`). Dann scheitert JEDER weitere Versuch mit
+      // demselben Fehler, und ohne dieses Kennzeichen bliebe der Oberflaeche nur der
+      // Knopf "Erneut versuchen", der nie etwas anderes bewirken kann. Mit ihm kann sie
+      // stattdessen den einzigen Ausweg anbieten: eine neue Anmeldung.
+      throw new ApiError("CLIENT_NETWORK", "", { cause: error, detail: "renew" });
     }
 
     const content = response.ok ? await this._content(response) : null;

@@ -112,7 +112,15 @@ function signedOut(ctx, diagnostics) {
   // Vorrang hat die Aussage des Dienstes: "kein Mitarbeiter zugeordnet" ist etwas voellig
   // anderes als "kein Token bekommen", und nur der Dienst kann das erste wissen.
   if (ctx.meError) {
-    children.push(ui.banner({ tone: "warn", label: errorText(ctx.meError) }));
+    // Eine gescheiterte Erneuerung bekommt ihren eigenen Satz. Der Code dahinter ist
+    // `CLIENT_NETWORK`, und dessen Satz - "Der TANSS-Dienst ist von Outlook aus nicht
+    // erreichbar" - waere hier irrefuehrend: Er nennt eine Stoerung, wo der Techniker
+    // in Wahrheit vor einer abgelaufenen Anmeldung steht, und erklaert nicht, warum
+    // ploetzlich eine Kennwortmaske vor ihm liegt.
+    children.push(ui.banner({
+      tone: "warn",
+      label: ctx.meError.detail === "renew" ? T.auth.renewFailed : errorText(ctx.meError),
+    }));
   }
 
   if (auth.hasEntraApp() && diagnostics.lastError) {

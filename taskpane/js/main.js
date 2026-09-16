@@ -233,10 +233,31 @@ async function renderRoute() {
     // noch darueber, ob die Nachricht im Originalformat geholt werden kann, und hat
     // mit dem Zugang nichts mehr zu tun.
     const error = app.meError || { code: "UNAUTHENTICATED" };
-    if (error.code === "UNAUTHENTICATED") {
+
+    // Zwei Zustaende, ein Ziel: Es liegt keine brauchbare Anmeldung vor.
+    //
+    //   - `UNAUTHENTICATED` - TANSS hat das Token abgewiesen, oder es lag keines vor.
+    //   - Eine gescheiterte ERNEUERUNG (`detail: "renew"`, siehe `tanss/session.js`).
+    //     Sie heisst dasselbe: Das Zugriffstoken ist abgelaufen und liess sich nicht
+    //     ersetzen. Ob die Erneuerung am Netz scheiterte oder daran, dass die Instanz
+    //     den Kopf `refreshToken` nicht durch ihre Vorabfrage laesst, ist von hier aus
+    //     nicht zu erkennen - der Browser meldet beides als gewoehnlichen Netzfehler.
+    //     Fuer den Techniker macht es auch keinen Unterschied: Er kommt in beiden
+    //     Faellen nur ueber eine Anmeldung weiter.
+    //
+    // Frueher endete der zweite Fall in einer Fehlermeldung mit dem Knopf "Erneut
+    // versuchen". Der war eine Sackgasse: Laesst die Instanz die Erneuerung nicht zu,
+    // scheitert jeder weitere Versuch aus demselben Grund, und aus diesem Zustand kam
+    // der Techniker nur noch durch Loeschen der Seitendaten heraus.
+    //
+    // Die Anmeldeseite VERWIRFT die Sitzung nicht. Das ist der Unterschied zum
+    // Abmelden, und er ist beabsichtigt: War TANSS nur kurz nicht erreichbar, genuegt
+    // dort "Erneut versuchen" - und ein kurzer Netzaussetzer kostet kein Kennwort.
+    if (error.code === "UNAUTHENTICATED" || error.detail === "renew") {
       navigate("#/anmeldung");
       return;
     }
+
     app.errorBar.show(error);
     fatal(error.message || T.errors.UNAUTHENTICATED, T.app.retry, () => void reload());
     return;

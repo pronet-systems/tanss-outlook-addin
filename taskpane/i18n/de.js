@@ -137,6 +137,17 @@ export const T = deepFreeze({
     methodTanss: "TANSS-Anmeldung",
     methodNone: "nicht angemeldet",
     signOut: "Abmelden",
+    // Steht als Banner ueber der Anmeldemaske, auf der der Techniker nach einer
+    // gescheiterten Erneuerung landet. Der Satz sagt zuerst, warum er hier ist - sonst
+    // liest sich eine unverlangte Kennwortabfrage wie ein Fehler des Panes -, und
+    // nennt dann den Fall, in dem das Kennwort gar nicht noetig ist: War TANSS nur
+    // kurz nicht erreichbar, genuegt der Knopf darunter. Welcher der beiden Faelle
+    // vorliegt, kann das Pane nicht wissen; eine abgewiesene CORS-Vorabfrage erreicht
+    // den Browser als gewoehnlicher Netzfehler.
+    renewFailed:
+      "Die Anmeldung ist abgelaufen und ließ sich nicht selbsttätig erneuern. " +
+      "Bitte neu anmelden — oder, falls TANSS nur vorübergehend nicht erreichbar war, " +
+      "zuerst „Erneut versuchen“.",
   },
 
   mail: {

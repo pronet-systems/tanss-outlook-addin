@@ -1,5 +1,5 @@
 /**
- * Die Sitzung ist die einzige Stelle, an der ein Token entsteht. Vier Zusagen haengen
+ * Die Sitzung ist die einzige Stelle, an der ein Token entsteht. Fuenf Zusagen haengen
  * an ihr, und jede einzelne faellt im Betrieb nur dann auf, wenn sie bricht:
  *
  * 1. Die Zugangsdaten stehen im Koerper, nie in der Adresse. In der Adresse landeten sie
@@ -12,6 +12,10 @@
  * 4. Zwei gleichzeitige Erneuerungen teilen sich EINEN Aufruf. Sonst verbrauchen beide
  *    dasselbe Erneuerungstoken, die zweite scheitert, und der Techniker landet mitten in
  *    der Arbeit auf der Anmeldeseite.
+ * 5. Eine gescheiterte Erneuerung ist als solche gekennzeichnet, und sie verwirft die
+ *    Sitzung nicht. Ohne das Kennzeichen bietet die Oberflaeche einen Knopf an, der im
+ *    CORS-Fall nie wirken kann; mit einem Verwerfen kostete jeder Netzaussetzer eine
+ *    Kennworteingabe.
  */
 
 import test from "node:test";
@@ -226,4 +230,37 @@ test("ein abgelaufenes Zugriffstoken mit Erneuerungstoken bleibt unterscheidbar"
   assert.ok(auskunft.expiresAt < Date.now(), "das Zugriffstoken war abgelaufen");
   assert.equal(s.isFresh(), false);
   assert.equal(s.exists(), true, "eine Sitzung, die erneuert werden kann, existiert");
+});
+
+test("eine abgewiesene Erneuerung ist als Erneuerung erkennbar", async () => {
+  // Der Browser meldet eine abgewiesene CORS-Vorabfrage als gewoehnlichen Netzfehler -
+  // ununterscheidbar von "TANSS ist gerade aus". Nur das Kennzeichen `renew` sagt der
+  // Oberflaeche, dass hier die ERNEUERUNG gescheitert ist und deshalb eine neue
+  // Anmeldung der Ausweg sein kann. Ohne es bleibt dem Techniker allein der Knopf
+  // "Erneut versuchen" - und der kann nie etwas bewirken, wenn die Instanz den Kopf
+  // `refreshToken` nicht in ihrer `Access-Control-Allow-Headers` fuehrt: Dann scheitert
+  // jeder weitere Versuch aus demselben Grund wie der erste.
+  globalThis.localStorage = fakeStorage();
+  const session = new Session({
+    baseUrl: BASE,
+    fetchImpl: async () => {
+      throw new TypeError("Failed to fetch");
+    },
+  });
+  session.clear();
+  session._store(
+    { employeeId: 7, apiKey: "Bearer alt", refresh: "y",
+      expire: Math.floor(Date.now() / 1000) - 60 },
+    "anna",
+  );
+
+  await assert.rejects(
+    () => session.ensureFresh(),
+    (error) => error.code === "CLIENT_NETWORK" && error.detail === "renew",
+  );
+
+  // Die andere Seite derselben Abwaegung: Ein Netzaussetzer darf die Sitzung NICHT
+  // kosten. Wuerde sie hier verworfen, erzwaenge jede kurze Stoerung eine
+  // Kennworteingabe - verworfen wird nur, was TANSS selbst abgewiesen hat.
+  assert.equal(session.exists(), true, "eine nur unerreichbare Sitzung bleibt bestehen");
 });
