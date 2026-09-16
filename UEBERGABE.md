@@ -113,6 +113,7 @@ Nichts davon ist Annahme.
 |---|---|
 | Erzeugtes Manifest | Microsofts Prüfdienst: „The manifest is valid." Outlook Windows, Mac, Web |
 | Fremder Ursprung an der TANSS-API | Vorabfrage HTTP 200, `Access-Control-Allow-Origin: *`, `apiToken` erlaubt |
+| Der Erneuerungskopf `refreshToken` an derselben Vorabfrage | **Nicht** erlaubt — siehe unten. Anmeldung und Fachaufrufe gehen, die Erneuerung nicht |
 | TANSS-API ohne Token | HTTP 403 mit leerem Körper — der Client behandelt das als Fehler, nie als leere Trefferliste |
 | Zertifikat einer nur intern auflösenden Instanz | Let's Encrypt, öffentlich vertrauenswürdig — Arbeitsplätze brauchen keine Zusatzmaßnahme |
 | `X-Frame-Options` auf statischen Pfaden eines gewöhnlichen Apache | Wird gesendet — **muss** für die Ablage entfernt werden, sonst bleibt das Pane weiß |
@@ -124,6 +125,59 @@ Nichts davon ist Annahme.
 | Welche TANSS-Flächen das Anmeldetoken eines Technikers erreicht | Nur `/api/v1/**`, einschließlich `/api/v1/admin/**`. **Nicht** `/api/tanss.x/v1/**` und **nicht** `/api/erp/v1/**` |
 | Ticketpriorität | Ganzzahl 1–9 am Ticket, Feldname `priority`. Keine Tabelle, keine Namen — TANSS beschriftet mit der Ziffer. `0` beim Speichern ⇒ der Server setzt seine konfigurierte Vorgabe |
 | Abteilungszugehörigkeit eines Technikers | Steht an der **Abteilung** (`employeeIds`), nicht am Mitarbeiter — dort führt TANSS nur die primäre |
+
+### Die Erneuerung braucht eine Zeile auf dem TANSS-Server
+
+Gemessen an `tanss.pronet-systems.de` (16.09.2026), Vorabfrage aus dem Ursprung
+`https://pronet-systems.github.io`:
+
+```
+Access-Control-Allow-Headers: content-type,cache-control,x-requested-with,
+                              x-xsrf-token,apiToken,user,password,
+                              contractWorkflowToken,ticketWorkflowToken
+```
+
+`apiToken` steht darin, **`refreshToken` nicht** — und genau dieser Kopf ist der einzige
+Weg, mit dem das Pane sein Zugriffstoken erneuert (`taskpane/js/tanss/session.js`).
+Die Folge ist nicht sporadisch, sondern die Uhr: Anmeldung und alle Fachaufrufe gehen,
+**vier Stunden** später läuft das Zugriffstoken ab, und die Erneuerung scheitert schon
+in der Vorabfrage des Browsers.
+
+Zu reparieren ist das **auf dem TANSS-Host**, nicht im Pane — im vhost, der `/backend`
+ausliefert:
+
+```apache
+Header always set Access-Control-Allow-Headers "content-type,cache-control,x-requested-with,x-xsrf-token,apiToken,refreshToken,user,password,contractWorkflowToken,ticketWorkflowToken"
+```
+
+Danach `apachectl configtest`, `systemctl reload apache2`, und nachmessen:
+
+```bash
+curl -si -X OPTIONS "https://<tanss-host>/backend/api/v1/employees/ownState" \
+  -H "Origin: https://<ursprung-des-panes>" \
+  -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: refreshtoken" | grep -i allow-headers
+```
+
+Offen und beim Hersteller zu klären: ob TANSS diese Liste selbst konfigurierbar führt —
+dann gehört der Eintrag dorthin statt in eine Apache-Zeile, die beim nächsten Umzug
+vergessen wird. Ebenfalls ungeprüft, weil dafür ein gültiges Erneuerungstoken nötig
+wäre: ob das Backend den Kopf hinter der Vorabfrage überhaupt auswertet.
+
+Das Pane hält diesen Zustand seit dem Fund aus: Eine gescheiterte Erneuerung endet nicht
+mehr in einer Fehlermeldung mit dem Knopf „Erneut versuchen" — der im CORS-Fall nie
+wirken kann —, sondern führt auf dieselbe Anmeldeseite, auf der auch ein abgewiesenes
+Token landet. Ein abgelaufenes Zugriffstoken, das sich nicht ersetzen lässt, heißt für
+den Techniker dasselbe wie gar keines: Er kommt nur über eine Anmeldung weiter.
+
+Die gespeicherte Sitzung wird dabei **nicht** verworfen — der Unterschied zum Abmelden,
+und er ist beabsichtigt: War TANSS nur kurz nicht erreichbar, genügt auf dieser Seite
+„Erneut versuchen", und ein Netzaussetzer kostet kein Kennwort.
+
+Das ist ein Notausgang und kein Ersatz für die Zeile oben — ohne sie tippt jeder
+Techniker alle vier Stunden sein Kennwort.
+
+---
 
 ### Die Richtung der Ticketpriorität ist unbekannt — und bleibt es
 

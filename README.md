@@ -620,6 +620,35 @@ zeigt, wie.
 `apiBase` stimmt nicht (fehlt der Pfad `/backend`?), oder der Browser lehnt den fremden
 Ursprung ab. Beides misst der Generator unter **Prüfen** nach.
 
+**Es geht — und nach ein paar Stunden geht es bei allen gleichzeitig nicht mehr.** Dann
+fehlt der Erneuerungskopf. Das Pane erneuert sein Zugriffstoken mit dem Kopf
+`refreshToken`; steht der nicht in der Antwort `Access-Control-Allow-Headers` der
+TANSS-Instanz, weist der Browser die Erneuerung ab, während Anmeldung und alle
+Fachaufrufe weiter gehen — bis das Token nach **vier Stunden** abläuft. Nachmessen:
+
+```bash
+curl -si -X OPTIONS "https://<ihre-tanss-instanz>/backend/api/v1/employees/ownState" \
+  -H "Origin: https://<ihre-ablage>" \
+  -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: refreshtoken" | grep -i allow-headers
+```
+
+Kommt eine Liste ohne `refreshToken` zurück, gehört er dort ergänzt — im vhost, der
+`/backend` ausliefert:
+
+```apache
+Header always set Access-Control-Allow-Headers "<bisherige Liste>,refreshToken"
+```
+
+Die Liste vorher aus der Messung oben übernehmen und nur ergänzen; danach
+`apachectl configtest` und `systemctl reload apache2`. Der Generator prüft diesen Kopf
+unter **Prüfen** mit.
+
+Bis die Zeile steht, endet die abgelaufene Sitzung nicht in einer Sackgasse: Das Pane
+führt zur **Anmeldemaske**, statt eine Störung zu melden. Der Techniker kommt damit
+weiter — tippt aber alle vier Stunden sein Kennwort, und das ist der Grund, die Zeile
+trotzdem zu setzen.
+
 **Die Schaltflächen erscheinen nicht.** Nach der Bereitstellung können 24 bis 72 Stunden
 vergehen. Outlook neu starten. Erscheinen sie dann immer noch nicht, ist die Zuweisung
 im Admin Center zu prüfen.
