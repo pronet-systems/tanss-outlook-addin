@@ -486,6 +486,23 @@ test("keine Seite ruft eine Route auf, die der Verteiler nicht kennt", () => {
   assert.ok(geprueft > 0, "kein einziger Routenaufruf gefunden - der Fall prueft nichts");
 });
 
+test("keine Seite schickt ihren Rueckweg auf die Standardroute", () => {
+  // `#/` ist die Standardroute NACH ART DES GEOEFFNETEN ELEMENTS - bei einer Mail immer
+  // "Ticket erstellen". Als Rueckweg ist das falsch: Wer die Diagnose aus "An Ticket
+  // anhaengen" oeffnete, kam nicht dorthin zurueck, sondern in der anderen Maske heraus,
+  // und was er dort schon ausgewaehlt hatte, war weg. Die Herkunft kennt nur der Router;
+  // die Seiten fragen ihn ueber `ctx.back()`.
+  const seiten = dateienUnter(join(TASKPANE, "js", "pages"), [".js"]);
+  assert.ok(seiten.length > 0, "keine Seite gefunden - der Fall prueft nichts");
+
+  for (const datei of seiten) {
+    const quelle = ohneKommentare(datei);
+    assert.ok(!quelle.includes('navigate("#/")'),
+      `${kurz(datei)} schickt den Benutzer auf die Standardroute statt dorthin, `
+      + "woher er kam - ctx.back() benutzen.");
+  }
+});
+
 test("der fruehe Zuhoerer steht vor office.js und ist kein Modul", () => {
   // Beides ist Bedingung, nicht Geschmack. Ein Modul liefe zurueckgestellt - also erst
   // nach office.js -, und genau die Meldungen, um die es geht, fallen waehrend dessen

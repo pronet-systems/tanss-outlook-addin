@@ -78,10 +78,13 @@ function signedIn(ctx, diagnostics) {
         })
       : null,
     // Zurueck heisst: weg von dieser Seite. Frueher stand hier `reload`, und das zeichnete
-    // dieselbe Seite noch einmal - der Knopf tat sichtbar nichts. `#/` ist die
-    // Standardroute nach Art des geoeffneten Elements; welche das ist, entscheidet der
-    // Router und nicht diese Seite.
-    ui.button({ label: T.app.back, variant: "ghost", onClick: () => ctx.navigate("#/") }),
+    // dieselbe Seite noch einmal - der Knopf tat sichtbar nichts. Wohin es geht,
+    // entscheidet der Router und nicht diese Seite: dorthin, woher sie betreten wurde.
+    //
+    // Das ist hier mehr als Bequemlichkeit. Auf diese Seite kommt, wen eine abgelaufene
+    // Anmeldung aus seiner Maske geworfen hat. Nach dem Anmelden gehoert er genau dorthin
+    // zurueck - und nicht in "Ticket erstellen", nur weil eine Mail offen ist.
+    ui.button({ label: T.app.back, variant: "ghost", onClick: () => ctx.back() }),
   ];
 }
 

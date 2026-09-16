@@ -52,6 +52,16 @@ const app = {
   /** @type {(() => void)|null} */ pageCleanup: null,
   itemType: null,
   route: "",
+  /**
+   * Die Seite, von der aus die aktuelle betreten wurde - der Rueckweg der Nebenseiten.
+   *
+   * `#/diagnose` und `#/anmeldung` sind von ueberall her erreichbar. Ihr "Zurueck" fuehrte
+   * bisher auf die Standardroute nach Art des geoeffneten Elements, und das ist bei einer
+   * Mail immer "Ticket erstellen": Wer die Diagnose aus "An Ticket anhaengen" geoeffnet
+   * hatte, landete beim Zurueckgehen in der falschen Maske - mitsamt dem Verlust dessen,
+   * was er dort schon ausgewaehlt hatte.
+   */
+  previousRoute: "",
 };
 
 /* --------------------------------------------------------------------- Geruest */
@@ -195,6 +205,11 @@ export function navigate(route) {
  */
 async function renderRoute() {
   const route = currentRoute();
+
+  // Nur ein WECHSEL zaehlt als Herkunft. Ein erneutes Zeichnen derselben Seite - der Knopf
+  // im Kopf auf der Diagnose, ein `reload()` nach der Anmeldung - darf den Rueckweg nicht
+  // auf sich selbst umbiegen; sonst fuehrt "Zurueck" auf die Seite, auf der man steht.
+  if (app.route && app.route !== route) app.previousRoute = app.route;
   app.route = route;
 
   if (app.pageAbort) app.pageAbort.abort();
@@ -289,6 +304,14 @@ function pageContext(route) {
     route,
     signal: app.pageAbort.signal,
     navigate,
+    /**
+     * Der Rueckweg einer Nebenseite: dorthin, woher sie betreten wurde.
+     *
+     * Die Seiten bestimmen ihn nicht selbst - sie wissen ihn gar nicht. Ohne Herkunft
+     * bleibt die Standardroute nach Art des geoeffneten Elements; das ist der Fall, in
+     * dem das Pane direkt auf einer Nebenseite geoeffnet wurde.
+     */
+    back: () => navigate(app.previousRoute || "#/"),
     showError,
     clearError: () => app.errorBar.hide(),
     setSubtitle: (value) => setHeader(ROUTES.get(route).title, value),
