@@ -113,7 +113,7 @@ Nichts davon ist Annahme.
 |---|---|
 | Erzeugtes Manifest | Microsofts Prüfdienst: „The manifest is valid." Outlook Windows, Mac, Web |
 | Fremder Ursprung an der TANSS-API | Vorabfrage HTTP 200, `Access-Control-Allow-Origin: *`, `apiToken` erlaubt |
-| Der Erneuerungskopf `refreshToken` an derselben Vorabfrage | **Nicht** erlaubt — siehe unten. Anmeldung und Fachaufrufe gehen, die Erneuerung nicht |
+| Der Erneuerungskopf `refreshToken` an derselben Vorabfrage | Fehlte — seit 17.09.2026 im vhost ergänzt und nachgemessen: eine Zeile, alle Routen. Siehe unten |
 | TANSS-API ohne Token | HTTP 403 mit leerem Körper — der Client behandelt das als Fehler, nie als leere Trefferliste |
 | Zertifikat einer nur intern auflösenden Instanz | Let's Encrypt, öffentlich vertrauenswürdig — Arbeitsplätze brauchen keine Zusatzmaßnahme |
 | `X-Frame-Options` auf statischen Pfaden eines gewöhnlichen Apache | Wird gesendet — **muss** für die Ablage entfernt werden, sonst bleibt das Pane weiß |
@@ -143,14 +143,30 @@ Die Folge ist nicht sporadisch, sondern die Uhr: Anmeldung und alle Fachaufrufe 
 **vier Stunden** später läuft das Zugriffstoken ab, und die Erneuerung scheitert schon
 in der Vorabfrage des Browsers.
 
-Zu reparieren ist das **auf dem TANSS-Host**, nicht im Pane — im vhost, der `/backend`
-ausliefert:
+Zu reparieren war das **auf dem TANSS-Host**, nicht im Pane. Seit dem 17.09.2026 steht
+im vhost, der `/backend` proxyt:
 
 ```apache
-Header always set Access-Control-Allow-Headers "content-type,cache-control,x-requested-with,x-xsrf-token,apiToken,refreshToken,user,password,contractWorkflowToken,ticketWorkflowToken"
+<Location /backend>
+    Header unset Access-Control-Allow-Headers
+    Header always set Access-Control-Allow-Headers "content-type,cache-control,x-requested-with,x-xsrf-token,apiToken,refreshToken,user,password,contractWorkflowToken,ticketWorkflowToken"
+</Location>
 ```
 
-Danach `apachectl configtest`, `systemctl reload apache2`, und nachmessen:
+Nachgemessen: eine einzige `Access-Control-Allow-Headers`-Zeile mit `refreshToken`, auf
+allen acht Routen, die das Pane benutzt — einschließlich `/api/tanss.x/v1/` —, dazu je
+eine `Access-Control-Allow-Origin`-Zeile, auch an der echten Antwort und nicht nur an
+der Vorabfrage.
+
+**Die erste Zeile ist der Teil, der Zeit gekostet hat.** Ohne sie sendet Apache
+**zwei** Listen: `Header always set` schreibt nach `err_headers_out`, der vom Backend
+durchgereichte Wert steht in `headers_out`, und beide Tabellen gehen raus. Es
+funktioniert dann trotzdem — der Browser fasst gleichnamige Kopfzeilen zu einer Liste
+zusammen —, aber die Konfiguration behauptet an zwei Stellen Verschiedenes, und die
+zweite kennt `refreshToken` nicht. Wer nachmisst und `allow-headers` doppelt sieht, dem
+fehlt das `unset`.
+
+So misst man nach:
 
 ```bash
 curl -si -X OPTIONS "https://<tanss-host>/backend/api/v1/employees/ownState" \
@@ -159,10 +175,11 @@ curl -si -X OPTIONS "https://<tanss-host>/backend/api/v1/employees/ownState" \
   -H "Access-Control-Request-Headers: refreshtoken" | grep -i allow-headers
 ```
 
-Offen und beim Hersteller zu klären: ob TANSS diese Liste selbst konfigurierbar führt —
-dann gehört der Eintrag dorthin statt in eine Apache-Zeile, die beim nächsten Umzug
-vergessen wird. Ebenfalls ungeprüft, weil dafür ein gültiges Erneuerungstoken nötig
-wäre: ob das Backend den Kopf hinter der Vorabfrage überhaupt auswertet.
+Zwei Punkte bleiben offen. Ob TANSS diese Liste selbst konfigurierbar führt — dann
+gehörte der Eintrag dorthin statt in eine Apache-Zeile, die beim nächsten Umzug
+vergessen wird. Und ob das **Backend** den Kopf hinter der Vorabfrage auch auswertet:
+Gemessen ist bisher nur, dass der Browser ihn senden darf. Das zeigt sich im Betrieb —
+bleibt die Anmeldung über den Tag stehen, greift die Erneuerung.
 
 Das Pane hält diesen Zustand seit dem Fund aus: Eine gescheiterte Erneuerung endet nicht
 mehr in einer Fehlermeldung mit dem Knopf „Erneut versuchen" — der im CORS-Fall nie

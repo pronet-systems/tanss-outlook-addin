@@ -663,10 +663,23 @@ Kommt eine Liste ohne `refreshToken` zurück, gehört er dort ergänzt — im vh
 `/backend` ausliefert:
 
 ```apache
-Header always set Access-Control-Allow-Headers "<bisherige Liste>,refreshToken"
+<Location /backend>
+    # Beide Zeilen, und in dieser Reihenfolge. Die erste ist der Grund, warum die
+    # zweite allein nicht reicht — siehe darunter.
+    Header unset Access-Control-Allow-Headers
+    Header always set Access-Control-Allow-Headers "<bisherige Liste>,refreshToken"
+</Location>
 ```
 
-Die Liste vorher aus der Messung oben übernehmen und nur ergänzen; danach
+**Warum zwei Zeilen?** `Header always set` schreibt nach `err_headers_out`; der vom
+Backend durchgereichte Wert steht in `headers_out`. Beide Tabellen werden gesendet —
+ohne das `unset` gehen **zwei** `Access-Control-Allow-Headers` raus, und die zweite,
+die des Backends, kennt `refreshToken` nicht. Es funktioniert dann zwar (der Browser
+fasst gleichnamige Kopfzeilen zu einer Liste zusammen), aber wer die Konfiguration
+später liest, findet zwei widersprüchliche Wahrheiten. Die Messung oben zeigt es: Steht
+`allow-headers` doppelt in der Ausgabe, fehlt das `unset`.
+
+Die Liste vorher aus der Messung übernehmen und nur ergänzen; danach
 `apachectl configtest` und `systemctl reload apache2`. Der Generator prüft diesen Kopf
 unter **Prüfen** mit.
 

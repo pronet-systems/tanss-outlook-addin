@@ -390,9 +390,29 @@ public static class Checks
 
             if (allowHeaders.Contains("refreshtoken", StringComparison.OrdinalIgnoreCase))
             {
+                // Zweimal dieselbe Kopfzeile ist der haeufigste Ausgang einer
+                // gutgemeinten Reparatur: `Header always set` legt seinen Wert in
+                // err_headers_out ab und ersetzt den vom Backend durchgereichten aus
+                // headers_out NICHT - Apache sendet beide. Es funktioniert, weil der
+                // Browser gleichnamige Kopfzeilen zu einer Liste zusammenfasst; die
+                // Konfiguration behauptet aber an zwei Stellen Verschiedenes, und die
+                // zweite kennt refreshToken nicht. Das gehoert benannt, nicht gefeiert.
+                var zeilen = response.Headers.TryGetValues("Access-Control-Allow-Headers", out var werte)
+                    ? werte.Count()
+                    : 0;
+                if (zeilen > 1)
+                {
+                    return new CheckResult("TANSS", name, Verdict.Unclear,
+                        $"Der Kopf refreshToken ist zugelassen, aber die Antwort traegt "
+                        + $"{zeilen} Access-Control-Allow-Headers-Zeilen - der eigene Eintrag "
+                        + "und der vom Backend durchgereichte. Es funktioniert, ist aber "
+                        + "widerspruechlich. Im vhost vor die Zeile setzen: "
+                        + "Header unset Access-Control-Allow-Headers");
+                }
+
                 return new CheckResult("TANSS", name, Verdict.Ok,
-                    "Der Kopf refreshToken ist zugelassen. Das Pane kann sein Token "
-                    + "selbsttaetig erneuern.");
+                    "Der Kopf refreshToken ist zugelassen, und die Antwort traegt genau eine "
+                    + "Liste. Das Pane kann sein Token selbsttaetig erneuern.");
             }
 
             return new CheckResult("TANSS", name, Verdict.Fail,
@@ -400,7 +420,11 @@ public static class Checks
                 + $"({allowHeaders}). Anmeldung und Fachaufrufe gehen damit, die "
                 + "Erneuerung nicht: Nach vier Stunden ist jeder Techniker ausgesperrt. "
                 + "Zu ergaenzen im vhost der TANSS-Instanz, der /backend ausliefert - "
-                + "Header always set Access-Control-Allow-Headers \"<bisherige Liste>,refreshToken\".");
+                + "BEIDE Zeilen, in dieser Reihenfolge: "
+                + "Header unset Access-Control-Allow-Headers / "
+                + "Header always set Access-Control-Allow-Headers \"<bisherige Liste>,refreshToken\". "
+                + "Ohne die erste sendet Apache zwei Listen, und die durchgereichte kennt "
+                + "den Kopf nicht.");
         }
         catch (Exception error) when (error is HttpRequestException or TaskCanceledException)
         {
